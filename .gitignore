@@ -1,0 +1,4 @@
+Images
+*.py~
+*.py.un~
+__pycache__
