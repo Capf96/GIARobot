@@ -4,10 +4,9 @@ from RPi import GPIO
 from RotaryEncoder import Encoder
 
 
-
 pi = pigpio.pi()
-EncoderRight= Encoder(pi, 6, 12)
-EncoderLeft= Encoder(pi, 19, 16)
+EncoderRight = Encoder(pi, 6, 12)
+EncoderLeft = Encoder(pi, 19, 16)
 
 
 pi.set_mode(18, pigpio.OUTPUT)
@@ -17,112 +16,107 @@ pi.set_mode(23, pigpio.OUTPUT)
 pi.set_mode(22, pigpio.OUTPUT)
 
 
-
-def PID(Speed, Movement, tiempo_final):
+def pid(speed, movement, tiempo_final):
 
 	dt = 0.05
-	Kp = 0.4
-	Kd = 0
+	kp = 0.4
+	kd = 0
 
-	InitialLeft = EncoderLeft.getTicks() 
-	InitialRight = EncoderRight.getTicks() 
+	initial_left = EncoderLeft.getTicks()
+	initial_right = EncoderRight.getTicks()
 
-	if Movement=="Foward":
-		SpeedLeft = Speed
-		SpeedRight = Speed
-		Kp = Kp
-		Kd = Kd
-	elif Movement == "TurnRight":
-		SpeedLeft  = Speed
-		SpeedRight = -Speed
-		Kp = Kp
-		Kd = Kd
-	elif Movement == "TurnLeft":
-		SpeedLeft  = -Speed
-		SpeedRight = Speed
-		Kp = Kp
-		Kd = Kd
-	elif Movement == "Backwards":
-		SpeedLeft = -Speed
-		SpeedRight = -Speed
-		Kp = Kp
-		Kd = Kd
-		
+	if movement == "F":
+		speed_left = speed
+		speed_right = speed
+		kp = kp
+		kd = kd
+	elif movement == "R":
+		speed_left = speed
+		speed_right = -speed
+		kp = kp
+		kd = kd
+	elif movement == "L":
+		speed_left = -speed
+		speed_right = speed
+		kp = kp
+		kd = kd
+	elif movement == "B":
+		speed_left = -speed
+		speed_right = -speed
+		kp = kp
+		kd = kd
+	else:
+		return
 
-	tiempo=0
-	ActualRight = 0
-	ActualLeft = 0
-	while(tiempo < tiempo_final):
+	tiempo = 0
+	actual_right = 0
+	actual_left = 0
+	while tiempo < tiempo_final:
 		tiempo = tiempo + dt
 
+		actual_left = EncoderLeft.getTicks() - actual_left  # Deberiamos leer los encoder aqui... no se como#
+		actual_right = EncoderRight.getTicks() - actual_right  # Deberiamos leer los encoder aqui... no se como#
+		print(str(actual_right))
+		print(str(actual_left))
 
-		ActualLeft = EncoderLeft.getTicks() - ActualLeft#Deberiamos leer los encoder aqui... no se como#
-		ActualRight = EncoderRight.getTicks() - ActualRight#Deberiamos leer los encoder aqui... no se como#
-		print(str(ActualRight))
-		print(str(ActualLeft))
-
-		ProportionalRight = ActualRight - InitialRight
-		ProportionalLeft = ActualLeft - InitialLeft
+		proportional_right = actual_right - initial_right
+		proportional_left = actual_left - initial_left
 		
-		Proportion = ActualRight - ActualLeft
+		# proportion = actual_right - actual_left
 
-		DerivativeRight = ProportionalRight/dt
-		DerivativeLeft = ProportionalLeft/dt
+		derivative_right = proportional_right/dt
+		derivative_left = proportional_left/dt
 
+		output_right = speed_right + derivative_right * kd - proportional_right * kp
+		# + (derivative_left * kd + proportional_left  * kp)
+		output_left = speed_left + derivative_left * kd + proportional_left * kp
+		# -  (derivative_right * kd + proportional_right  * kp)
 
+		if output_right > 255:
+			output_right = 255
+		elif output_right < -255:
+			output_right = -255
 
+		if output_left > 255:
+			output_left = 255
+		elif output_left < -255:
+			output_left = -255
 
+		print("Right "+str(output_right))
+		print("Left "+str(output_left))
 
+		if output_right <= 0:
+			if output_left <= 0:
+				pi.set_PWM_dutycycle(18, 0)
+				pi.set_PWM_dutycycle(17, -output_right)
 
-		OutputRight = SpeedRight + DerivativeRight * Kd - ProportionalRight * Kp #+ (DerivativeLeft * Kd + ProportionalLeft  * Kp)
-		OutputLeft = SpeedLeft + DerivativeLeft * Kd + ProportionalLeft * Kp #-  (DerivativeRight * Kd + ProportionalRight  * Kp)
+				pi.set_PWM_dutycycle(23, -output_left)
+				pi.set_PWM_dutycycle(22, 0)
 
-              
+			else:
+				pi.set_PWM_dutycycle(17, -output_right)
+				pi.set_PWM_dutycycle(18, 0)
 
-		if OutputRight >255:
-			OutputRight = 255
-		if OutputLeft >255:
-			OutputLeft = 255
-		if OutputRight <-255:
-			OutputRight = -255
-		if OutputLeft <-255:
-			OutputLeft = -255
-		print("Right "+str(OutputRight))
-		print("Left "+str(OutputLeft))
+				pi.set_PWM_dutycycle(23, 0)
+				pi.set_PWM_dutycycle(22, output_left)
 
-		if OutputRight <= 0 and OutputLeft <= 0:
-			pi.set_PWM_dutycycle(18, 0)
-			pi.set_PWM_dutycycle(17, -OutputRight)
+		elif output_right > 0:
+			if output_left <= 0:
+				pi.set_PWM_dutycycle(18, output_right)
+				pi.set_PWM_dutycycle(17, 0)
 
-			pi.set_PWM_dutycycle(23, -OutputLeft)
-			pi.set_PWM_dutycycle(22, 0)
+				pi.set_PWM_dutycycle(23, -output_left)
+				pi.set_PWM_dutycycle(22, 0)
 
-		elif OutputRight <= 0 and OutputLeft > 0:
-			pi.set_PWM_dutycycle(18, 0)
-			pi.set_PWM_dutycycle(17, -OutputRight)
+			else:
+				pi.set_PWM_dutycycle(18, output_right)
+				pi.set_PWM_dutycycle(17, 0)
 
-			pi.set_PWM_dutycycle(23, 0)
-			pi.set_PWM_dutycycle(22, OutputLeft)
+				pi.set_PWM_dutycycle(23, 0)
+				pi.set_PWM_dutycycle(22, output_left)
 
-		elif OutputRight >0 and  OutputLeft <= 0:
-			pi.set_PWM_dutycycle(18, OutputRight)
-			pi.set_PWM_dutycycle(17, 0)
-
-			pi.set_PWM_dutycycle(23, -OutputLeft)
-			pi.set_PWM_dutycycle(22, 0)
-
-		elif OutputRight >0 and  OutputLeft > 0:
-			pi.set_PWM_dutycycle(18, OutputRight)
-			pi.set_PWM_dutycycle(17, 0)
-
-			pi.set_PWM_dutycycle(23, 0)
-			pi.set_PWM_dutycycle(22, OutputLeft)
-
-
-
-
-		InitialLeft = ActualLeft
-		InitialRight = ActualRight
+		initial_left = actual_left
+		initial_right = actual_right
 		sleep(dt)
 
 	pi.set_PWM_dutycycle(18, 0)
@@ -131,4 +125,5 @@ def PID(Speed, Movement, tiempo_final):
 	pi.set_PWM_dutycycle(22, 0)
 	pi.stop()
 
-PID(190, "Foward", 1)
+
+pid(190, "F", 1)

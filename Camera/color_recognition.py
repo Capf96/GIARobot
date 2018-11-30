@@ -38,11 +38,14 @@ def find_biggest_contour(image):
 
     # Isolate largest contour
     contour_sizes = [(cv2.contourArea(contour), contour) for contour in contours]
-    biggest_contour = max(contour_sizes, key=lambda x: x[0])[1]
+    if contour_sizes:
+        biggest_contour = max(contour_sizes, key=lambda x: x[0])[1]
 
-    mask = np.zeros(image.shape, np.uint8)
-    cv2.drawContours(mask, [biggest_contour], -1, 255, -1)
-    return biggest_contour, mask
+        mask = np.zeros(image.shape, np.uint8)
+        cv2.drawContours(mask, [biggest_contour], -1, 255, -1)
+        return biggest_contour, mask
+
+    return [], []
 
 
 def circle_contour(image, contour):
@@ -55,7 +58,7 @@ def circle_contour(image, contour):
     return image_with_ellipse
 
 
-def find_container(image, hue, min_saturation, min_value, max_saturation, max_value):
+def find_container(image, hue, variation, min_saturation, min_value, max_saturation, max_value):
     # RGB stands for Red Green Blue. Most often, an RGB color is stored
     # in a structure or unsigned integer with Blue occupying the least
     # significant area (a byte in 32-bit and 24-bit formats), Green the
@@ -85,18 +88,15 @@ def find_container(image, hue, min_saturation, min_value, max_saturation, max_va
 
     # Filter by colour
     # 0-10 hue
-    # minimum red amount, max red amount
-    # Red = 60, 50 / 256, 256
-
     min_red = np.array([hue, min_saturation, min_value])
-    max_red = np.array([hue + 10, max_saturation, max_value])
+    max_red = np.array([hue + variation, max_saturation, max_value])
     # layer
     mask1 = cv2.inRange(image_blur_hsv, min_red, max_red)
 
     # brightness of a color is hue
     # 170-180 hue
     min_red2 = np.array([hue + 170, min_saturation, min_value])
-    max_red2 = np.array([hue + 180, max_saturation, max_value])
+    max_red2 = np.array([hue + 170 + variation, max_saturation, max_value])
     mask2 = cv2.inRange(image_blur_hsv, min_red2, max_red2)
 
     # looking for what is in both ranges
@@ -124,21 +124,28 @@ def find_container(image, hue, min_saturation, min_value, max_saturation, max_va
 
     # Circle biggest container
     # circle the biggest one
-    circled = circle_contour(overlay, big_container_contour)
-    show(circled)
+    if not (type(big_container_contour) == list) and big_container_contour.tolist():
+        circled = circle_contour(overlay, big_container_contour)
+        show(circled)
+        print(type(big_container_contour))
+        # we're done, convert back to original color scheme
+        bgr = cv2.cvtColor(circled, cv2.COLOR_RGB2BGR)
+        return bgr
 
-    # we're done, convert back to original color scheme
-    bgr = cv2.cvtColor(circled, cv2.COLOR_RGB2BGR)
-
-    return bgr
+    return []
 
 
 # read the image
-image = cv2.imread('Images/IMG_0573.jpg')
+image = cv2.imread('Images/IMG_0570.jpg')
 # detect it
 # Red
-result = find_container(image, 0, 40, 50, 256, 256)
+# result = find_container(image, 0, 10, 40, 50, 255, 255)
 # Blue
-# result = find_container(image, 103, 0, 30, 255, 255)
+# result = find_container(image, 103, 10, 0, 30, 255, 255)
+# Green
+result = find_container(image, 68, 180, 180, 40, 255, 255)
 # write the new image
-cv2.imwrite('result.jpg', result)
+if not (type(result) == list) and result.tolist():
+    cv2.imwrite('result.jpg', result)
+else:
+    print("No se obtuvo resultado")
