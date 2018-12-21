@@ -33,7 +33,7 @@ while True:
     
     encoder2PinLast = n2
     n2 = GPIO.input(dtr)
-    if( encoderPinLast == 0 and n2==1):
+    if( encoder2PinLast == 0 and n2==1):
         if(GPIO.input(clkr) == 0):
             encoder2pos +=1
         else:
