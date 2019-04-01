@@ -20,7 +20,7 @@ i = 0
 while i < 20:
     #Tomamos la foto
     #camera.start_preview()
-    sleep(1)
+    sleep()
     camera.capture('/home/pi/Documents/Larc 2018-2019/Robot A/Camera/Images/image%s.jpg' % i)
     #camera.stop_preview()
     #Empezamos a reconocer la imagen
