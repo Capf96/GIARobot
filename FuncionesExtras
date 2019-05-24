@@ -1,0 +1,57 @@
+
+	# Agregar atributo
+	self.proporcional_pasado = 0
+
+	#Agregar metodo a la clase QTR
+	def average(self):
+		result = 0
+		suma = 0
+		for i in range(len(self.list)):
+			result += 1000*i*self.list[i].getValue()
+			suma += self.list[i].getValue()
+
+		return (result/suma)
+
+	# Clase Robot 
+
+	def seguirLinea(self, velocidad):
+
+		#Parametros del PID
+		kp = 0.1  # Constante Proporcional
+		ki = 0	  # Constante Integral
+		kd = 0	  # Constante Diferencial
+
+		position = self.qtr.average()
+		proporcional = position - 3500
+		integral=integral + self.proporcional_pasado; 
+		derivativo = (proporcional - self.proporcional_pasado)
+
+		if integral>1000: integral=1000
+		if integral<-1000: integral=-1000
+		salida_pwm =( proporcional * Kp ) + ( derivativo * Kd )+(integral*Ki)
+
+		if salida_pwm > velocidad  :  salida_pwm = velocidad
+		if salida_pwm < -velocidad :  salida_pwm = -velocidad
+
+		if (salida_pwm < 0):
+			self.mLeft.run(velocidad+salida_pwm)
+			self.mRight.run(velocidad)
+		if (salida_pwm >0):
+			self.mLeft.run(velocidad)
+			self.mRight.run(velocidad+salida_pwm)
+
+		self.proporcional_pasado = proporcional
+
+	def detectarEsquina():
+		c = 1000
+		sensors = self.qtr.getValues()
+		if sensors[0]>c or sensors[7]>c:
+			return True
+		else: return False
+
+	def seguirLineaEsq(self, der, bloque):
+		d = 20
+		while not detectarEsquina():
+			seguirLinea(100)
+		if bloque: avanzar(d)
+		else girar(not der)
