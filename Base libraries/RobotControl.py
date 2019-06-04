@@ -26,7 +26,7 @@ class Robot(object):
 		self.magnet   = magnet   # Iman
 		self.qtr      = qtr 	    # Sensor de linea
 		
-		self.proporcional_pasado = 0 # Necesario para PID de seguir linea
+	
 		
 		# Los sensores se representan con un arreglo [a, b], donde a es el Trigger y b es el Echo
 		self.ultSndL  = ultSndL  # Sensor Ultrasonido Izquierdo
@@ -317,6 +317,174 @@ class Robot(object):
 		#Detenemos los motores
 		self.mLeft.stop()
 		self.mRight.stop()
+		#Reinicio los ticks del encoder en 0
+		self.mLeft.encoder.ticks = 0 
+		self.mRight.encoder.ticks = 0
+	
+	def turnLeftNonStop(self, degrees, pwm): 
+		#Funcion    :El robot gira en sentido antihorario "degrees" grados con una potencia 'pwm'.
+
+		#Entradas#
+		#"degrees"  :Grados aproximada que se desea que el robot gire. Tirne que estar en grados.
+		#"pwm"      :Potencia de los motores 
+		
+
+		#Parametros del PID#
+		kp = 0.1 # Constante Proporcional
+		ki = 0	  # Constante Integral
+		kd = 0	  # Constante Diferencial
+		
+		
+
+		#Funcion de correcion(experimental) para los grados que se tienen que recorrer
+		correction = lambda x: 1.86586641*(x**0.32895066) - 3
+		degrees = degrees - correction(degrees)
+		
+		#Parametros del robot#
+		r = 4.08 #cm Radio de las ruedas
+		L = 26.5 #cm Distancia entre las ruedas
+		
+		#Parametros del tiempo#
+		dt = 0.07 #s
+		
+		
+		#Inizialicacion de las variables del PID#
+		pdif = 0    # Diferencia/error previo
+		psum = 0    # Suma de las diferencias/errores previas
+		
+		pTicksR = 0 # Ticks derechos previos
+		pTicksL = 0	# Ticks izquierdos previos
+		
+		nTicksR = 0 # Ticks derechso actuales
+		nTicksL = 0 # Ticks izquierdos actuales
+		
+		#Inicializacion de los grados girados#
+		degreesT = 0
+		aux = True
+		while abs(degreesT) < abs(degrees) :
+			#Se lee el valor de los encoders#
+			
+			nTicksR = self.mRight.getTicks()
+			nTicksL = self.mLeft.getTicks()
+			
+			#Error/diferencia entre la salida de los encoders de esta iteracion#
+			dif = abs(nTicksR) - abs(nTicksL)
+			
+			#Suma de los errores(dif) anteriores#
+			psum = psum + dif
+
+			#Aplicacion de la funcion de PID#
+			delta = dif * kp + (dif - pdif / dt) *kd + ki * psum
+
+			#Se modifica la salida de los motores#
+			self.mLeft.run(-pwm - delta)  
+			self.mRight.run(pwm) 
+
+			#La Diferencia Actual 'dif' pasa a ser la diferencia previa 'pdif' #
+			pdif = dif
+
+			#Se calcula la velocidad angular de cada rueda del robot y con esos valores se calcula la velocidad angular del robot#
+			wr =(nTicksR - pTicksR) / (dt * 10) # convertimos los ticks/s en grados/segfundos 3600 ticks = 360 grados
+			wl =(nTicksL - pTicksL) / (dt * 10)
+			w = r * (wr - wl) / L # grados/s
+			
+			#Integramos para hallar los grados recorridos#
+			degreesT = w * dt + degreesT
+			
+			
+			#Los ticks de los sensores actuales 'nTicks' pasan a ser los ticks previos 'pTicks'#
+			pTicksR = nTicksR
+			pTicksL = nTicksL
+			
+		
+			
+			sleep(dt)
+		
+
+		#Reinicio los ticks del encoder en 0
+		self.mLeft.encoder.ticks = 0 
+		self.mRight.encoder.ticks = 0
+	def turnRightNonStop(self, degrees, pwm):  
+
+		#Funcion    :El robot gira n sentido horario "degrees" grados con una potencia 'pwm'.
+
+		#Entradas#
+		#"degrees"  :Grados aproximada que se desea que el robot gire. Tirne que estar en grados.
+		#"pwm"      :Potencia de los motores 
+				
+		#Aplicamos la misma funcion turnLeft solo que la distancia y la potencia de los motores son negativas#
+
+		#Parametros del PID#
+		kp = 0.1 # Constante Proporcional
+		ki = 0	  # Constante Integral
+		kd = 0	  # Constante Diferencial
+		
+		
+
+		#Funcion de correcion(experimental) para los grados que se tienen que recorrer
+		correction = lambda x: 1.86586641*(x**0.32895066) - 3
+		degrees = degrees - correction(degrees)
+		
+		#Parametros del robot#
+		r = 4.08 #cm Radio de las ruedas
+		L = 26.5 #cm Distancia entre las ruedas
+		
+		#Parametros del tiempo#
+		dt = 0.07 #s
+		
+		
+		#Inizialicacion de las variables del PID#
+		pdif = 0    # Diferencia/error previo
+		psum = 0    # Suma de las diferencias/errores previas
+		
+		pTicksR = 0 # Ticks derechos previos
+		pTicksL = 0	# Ticks izquierdos previos
+		
+		nTicksR = 0 # Ticks derechso actuales
+		nTicksL = 0 # Ticks izquierdos actuales
+		
+		#Inicializacion de los grados girados#
+		degreesT = 0
+		
+		
+		while abs(degreesT) < abs(degrees) :
+			#Se lee el valor de los encoders#
+			nTicksR = self.mRight.getTicks()
+			nTicksL = self.mLeft.getTicks()
+			
+			#Error/diferencia entre la salida de los encoders de esta iteracion#
+			dif = abs(nTicksR) - abs(nTicksL)
+			
+			#Suma de los errores(dif) anteriores#
+			psum = psum + dif
+
+			#Aplicacion de la funcion de PID#
+			delta = dif * kp + (dif - pdif / dt) *kd + ki * psum
+
+			#Se modifica la salida de los motores#
+			self.mLeft.run(pwm + delta)  
+			self.mRight.run(-pwm) 
+
+			#La Diferencia Actual 'dif' pasa a ser la diferencia previa 'pdif' #
+			pdif = dif
+
+			#Se calcula la velocidad angular de cada rueda del robot y con esos valores se calcula la velocidad angular del robot#
+			wr =(nTicksR - pTicksR) / (dt * 10) # convertimos los ticks/s en grados/segfundos 3600 ticks = 360 grados
+			wl =(nTicksL - pTicksL) / (dt * 10)
+			w = r * (wr - wl) / L # grados/s
+			
+			#Integramos para hallar los grados recorridos#
+			degreesT = w * dt + degreesT
+			
+			#Los ticks de los sensores actuales 'nTicks' pasan a ser los ticks previos 'pTicks'#
+			pTicksR = nTicksR
+			pTicksL = nTicksL
+			
+			
+			
+			sleep(dt)
+	
+		
 		#Reinicio los ticks del encoder en 0
 		self.mLeft.encoder.ticks = 0 
 		self.mRight.encoder.ticks = 0
@@ -809,9 +977,9 @@ class Robot(object):
 
 
 		position = self.qtr.average() 	# Revisamos en que sensor esta centrado el qtr ("Que sensor esta en negro")
-		
+
 		# Calculamos el valor proporcional, integarl y derivativo del PID basados en la poscicon del sensor
-		proporcional = position - 3500  
+		proporcional = position - 2500
 		integral=integral + self.proporcional_pasado;  
 		derivativo = (proporcional - self.proporcional_pasado)
 
@@ -823,16 +991,10 @@ class Robot(object):
 		#Calculamos la funcion PID
 		delta_pwm = ( proporcional * kp ) + ( derivativo * kd ) + ( integral * ki )
 
-		#Angel esto es redudante :/ (Dentro de la clase motores ya hay una funcion que acota la salida para que no supere 100 )
-		"""
-		if salida_pwm > pwm  :  
-			salida_pwm = pwm
-		if salida_pwm < -pwm :  
-			salida_pwm = -pwm
-		"""
+	
 		#Evaluamos casos para que el robot no se atrase
-		if (delta_pwm < 0):
-			self.mLeft.run(pwm + delta_pwm)
+		if (delta_pwm <= 0):
+			self.mLeft.run(pwm - delta_pwm)
 			self.mRight.run(pwm)
 		
 		if (delta_pwm >0):
@@ -856,7 +1018,7 @@ class Robot(object):
 
 
 		#Parametros del PID#
-		kp = 0.75 # Constante Proporcional
+		kp = 0   # Constante Proporcional
 		ki = 0	  # Constante Integral
 		kd = 0	  # Constante Diferencial
 		integral = 0
@@ -868,7 +1030,7 @@ class Robot(object):
 		dt = 0        # Diferencial de tiempo. *Es el tiempo que espera el sistema para aplciar de nuevo los calculos de ajuste del PID.*
 		epsilon = 0.7
 		timepast = 0 
-	
+
 		d = 20
 		
 		while not detectarEsquina(1000, 0.1, 0, 0):
@@ -886,7 +1048,79 @@ class Robot(object):
 		if bloque: avanzar(d)
 		else: girar(not der)
 
+	def followLineCorner(self, pwm):
+		#Parametros del PID#
+		kp = 0.007 # Constante Proporcional
+		ki = 0	  # 	  # Constante Integral
+		kd = 0	  # Constante Diferencial
 
+		#Parametros dl pwm
+		
+
+		#Vairables de tiempo
+		dt = 0        # Diferencial de tiempo. *Es el tiempo que espera el sistema para aplciar de nuevo los calculos de ajuste del PID.*
+		epsilon = 0.3
+		timepast = 0 
+		integral=0
+		d = 20
+		
+		proporcional_pasado = 0
+		
+		sensores = self.qtr.getValues()
+		while not all(k < 500 for k in sensores):
+			sensores = self.qtr.values
+			print(sensores)
+			# Mide el tiempo actual
+			timenow  = time()	
+			# Calcula diferencia entre el teimpo actual y el pasado
+			dt = timenow - timepast
+			#Si se supera el epsilon se hace el calculo del PID
+			if dt >= epsilon:
+				position = self.qtr.average() 	# Revisamos en que sensor esta centrado el qtr ("Que sensor esta en negro")
+
+				# Calculamos el valor proporcional, integarl y derivativo del PID basados en la poscicon del sensor
+				proporcional = position - 2000
+				integral=integral + proporcional_pasado;  
+				derivativo = (proporcional - proporcional_pasado)
+
+				#Se acota el valor del valor integral del PID
+				if integral>1000: 
+					integral=1000
+				if integral<-1000: 
+					integral=-1000
+				#Calculamos la funcion PID
+				delta_pwm = ( proporcional * kp ) + ( derivativo * kd ) + ( integral * ki )
+
+
+				#Evaluamos casos para que el robot no se atrase
+				if (delta_pwm <= 0):
+					self.mLeft.run(pwm - delta_pwm)
+					self.mRight.run(pwm)
+				
+				if (delta_pwm >0):
+					
+					self.mLeft.run(pwm)
+					self.mRight.run(pwm + delta_pwm)
+
+				proporcional_pasado = proporcional
+				timenow = timepast
+
+
+
+		self.stop()
+		
+	def turnUntilLine(self,pwm, booleano): #Si el boleano es true gira a la derecha si no a la izquierda
+		db=1
+		if booleano:
+			while all(i < 650 for i in self.qtr.getValues()):
+				self.turnRightNonStop(db, pwm)
+			self.stop()
+		else:
+			while all(i < 650 for i in self.qtr.getValues()):
+				self.turnLeftNonStop(db, pwm)
+			self.stop()
+	
+			
 				
 	
 	

@@ -26,24 +26,29 @@ class QTR(object):
 		time.sleep(3)
 		w = raw_input("Calibracion lista presiona un boton" + "\n")
 		self.positions = positions
-		self.list = []
-		
+		self.lista = []
+		self.value = []
 		for i in range(len(self.positions)):
-			self.list.append(Sensor(positions[i]))
+			self.lista.append(Sensor(positions[i]))
 			
 	def getValues(self):
-		values=[]
-		for i in range(len(self.list)):
-			values.append(self.list[i].getValue())
+		self.values=[]
+		for i in range(len(self.lista)):
+			self.values.append(self.lista[i].getValue())
 				
-		return values
+		return self.values
 	
 	def average(self):
+		sensores = self.getValues()
 		result = 0
 		suma = 0
-		for i in range(len(self.list)):
-			result += i*1000*self.list[i].getValue()
-			suma += self.list[i].getValue()
+		for i in range(len(sensores)):
+			result += i*1000*sensores[i]
+			suma += sensores[i]
+			
+			
+			#result += i*1000*self.lista[i].getValue()
+			#suma += self.lista[i].getValue() Angel MAMAMGUEVOOOOOO tu no sabes lo que cuesta comunicarse con el arduino carajito atte: lalezka
 		return (result/suma)
 
 
