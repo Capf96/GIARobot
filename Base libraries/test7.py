@@ -1,10 +1,12 @@
 from MotorControl import Motor
 from RobotControl import Robot
 import pigpio
-from time import sleep
+
+import time
 from electroIman import Magnet
 from Sensores import QTR, Sensor
 from grua import Grua
+from UltraSonic import UltrasonicS
 
 
 #Para una vuelta de 90 grados se necesitan que las ruedas giren alrededor de 5700 ticks
@@ -13,9 +15,13 @@ motorL = Motor("Motor Izquierdo", 18, 17, 26, 20)
 motorR = Motor("Motor Derecho", 23, 22, 16, 19)
 iman = Magnet(27)
 qtr = QTR([0,1,2,3,4,5,6,7])
-grua = Grua(25, 24)
+usDer = UltrasonicS(21, 4)
+usIzq = UltrasonicS(21, 24)
+usIm  = UltrasonicS(21, 25)
+grua = Grua(10, 9, 7, 8, usIm)
 
-robot = Robot(motorL, motorR, iman, qtr)
+
+robot = Robot(motorL, motorR, iman, qtr, usIzq, usDer)
 
 
 
@@ -36,19 +42,32 @@ robot.magnet.off()
 robot.backward(20,50)
 """
 
-#robot.aling(30)
-#robot.forward(5,50)
-#robot.getToLineF(30)
-#obot.aling(30)
-#robot.backward(10,50)
-#robotot.turnLeft(180, 50)
-#robot.getToLineF(30)
-#robot.aling(30)
-robot.magnet.on()
-sleep(3)
-robot.magnet.off()
 
+#Parametros del PID#
+kp = 0.75 # Constante Proporcional
+ki = 0	  # Constante Integral
+kd = 0	  # Constante Diferencial
 
+#Parametros dl pwm
+pwm = 35
 
+#Vairables de tiempo
+dt = 0        # Diferencial de tiempo. *Es el tiempo que espera el sistema para aplciar de nuevo los calculos de ajuste del PID.*
+epsilon = 0.7
+timepast = 0 
+integral=0
+d = 20
+k = 0
+while k < 5:
+	# Mide el tiempo actual
+	timenow  = time.time()	
+	# Calcula diferencia entre el teimpo actual y el pasado
+	dt = timenow - timepast
+	#Si se supera el epsilon se hace el calculo del PID
+	if dt >= epsilon:
+		robot.seguirLinea(pwm, kp, ki, kd, integral)
+		timenow = timepast
+	k += 1
+	time.sleep(1)
 
-
+robot.stop()

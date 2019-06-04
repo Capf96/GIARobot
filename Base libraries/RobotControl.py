@@ -1,16 +1,15 @@
 import pigpio
 import serial
-import RPi.GPIO as GPIO
 
 from MotorControl import Motor
 from time import sleep, time
 from electroIman import Magnet
 from Sensores import QTR, Sensor
+from UltraSonic import UltrasonicS
 from subprocess import call 
 
 
 
-GPIO.setmode(GPIO.BCM) #Queremos usar la numeracion de la placa
 ser = serial.Serial('/dev/ttyUSB0', 57600)
 
 # Encoder provides a resolution of 3600 ticks per revolution.
@@ -21,18 +20,26 @@ ser.flushInput()
 
 class Robot(object):
 	
-	def __init__(self, mLeft, mRight, magnet, qtr, ultSndL, ultSndR, ultSndIm):
+	def __init__(self, mLeft, mRight, magnet, qtr, ultSndL, ultSndR):
 		self.mLeft    = mLeft    # Motor Izquierdo
 		self.mRight   = mRight   # Motor Derecho
 		self.magnet   = magnet   # Iman
 		self.qtr      = qtr 	    # Sensor de linea
 		
+		self.proporcional_pasado = 0 # Necesario para PID de seguir linea
+		
 		# Los sensores se representan con un arreglo [a, b], donde a es el Trigger y b es el Echo
 		self.ultSndL  = ultSndL  # Sensor Ultrasonido Izquierdo
 		self.ultSndR  = ultSndR  # Sensor Ultrasonido Derecho
-		self.ultSndIm = ultSndI  # Sensor Ultrasonido del Iman
 		
-			
+	def stop(self): 
+		#Se detiene el robot al terminar la ejecucion de la funcion.
+		self.mLeft.stop()
+		self.mRight.stop()
+	
+		#Se reinician los ticks de los encoder en 0
+		self.mLeft.encoder.ticks = 0 
+		self.mRight.encoder.ticks = 0		
 		
 	
 	
@@ -686,7 +693,7 @@ class Robot(object):
 				timenow = time()
 				
 				
-	def actUltSndL(self):
+	
 		# Medimos distancia con el ultra sonido izquierdo
 		
 		
@@ -731,7 +738,7 @@ class Robot(object):
 		return medida
 
 
-	def actUltSndR(self):
+
 		# Medimos distancia con el ultra sonido derecho
 		
 		
@@ -780,21 +787,104 @@ class Robot(object):
 		# Nos alineamos con el bloque
 	
 		# Leemos el valor de los ultrasonidos laterales
-		sensorL = actUltSndL(self)
-		sensorR = actUltSndR(self)
+		sensorL = self.ultSndL.getDistance()
+		sensorR = self.ultSndR.getDistance()
 
 		# Mientras el sensor izquierdo lea bien pero el derecho no, se movera a la izquierda
 		while (13.5 < sensorL) and (sensorL < 14.5) and ( (sensorR < 13.5) or (senserR > 14.5) ):
 			leftPrll(500, 50)
-			sensorL = actUltSndL(self)
-			sensorR = actUltSndR(self)
+			sensorL = self.ultSndL.getDistance()
+			sensorR = self.ultSndR.getDistance()
+
 
 			
 		# Mientras el sensor derecho lea bien pero el izquierdo no, se movera a la derecha
 		while (13.5 < sensorR) and (sensorR < 14.5) and ( (sensorL < 13.5) or (senserL > 14.5) ):
 			rightPrll(500, 50)
-			sensorL = actUltSndL(self)
-			sensorR = actUltSndR(self)
+			sensorL = self.ultSndL.getDistance()
+			sensorR = self.ultSndR.getDistance()
+
+			
+	def seguirLinea(self, pwm, kp, ki, kd, integral):
+
+
+		position = self.qtr.average() 	# Revisamos en que sensor esta centrado el qtr ("Que sensor esta en negro")
+		
+		# Calculamos el valor proporcional, integarl y derivativo del PID basados en la poscicon del sensor
+		proporcional = position - 3500  
+		integral=integral + self.proporcional_pasado;  
+		derivativo = (proporcional - self.proporcional_pasado)
+
+		#Se acota el valor del valor integral del PID
+		if integral>1000: 
+			integral=1000
+		if integral<-1000: 
+			integral=-1000
+		#Calculamos la funcion PID
+		delta_pwm = ( proporcional * kp ) + ( derivativo * kd ) + ( integral * ki )
+
+		#Angel esto es redudante :/ (Dentro de la clase motores ya hay una funcion que acota la salida para que no supere 100 )
+		"""
+		if salida_pwm > pwm  :  
+			salida_pwm = pwm
+		if salida_pwm < -pwm :  
+			salida_pwm = -pwm
+		"""
+		#Evaluamos casos para que el robot no se atrase
+		if (delta_pwm < 0):
+			self.mLeft.run(pwm + delta_pwm)
+			self.mRight.run(pwm)
+		
+		if (delta_pwm >0):
+			
+			self.mLeft.run(pwm)
+			self.mRight.run(pwm + delta_pwm)
+
+		self.proporcional_pasado = proporcional
+
+	def detectarEsquina(self, c):
+		sensors = self.qtr.getValues()
+		if sensors[0]>c or sensors[7]>c: return True
+		else:                            return False
+
+	def seguirLineaEsq(self, der, bloque):
+		#Funcion    :El robot se sigue la linea hasta detectar una esquina
+
+		#Entradas#
+		#"der"   :Distancia aproximada que se desea que el robot recorra
+		#"bloque":Potencia de los motores 
+
+
+		#Parametros del PID#
+		kp = 0.75 # Constante Proporcional
+		ki = 0	  # Constante Integral
+		kd = 0	  # Constante Diferencial
+		integral = 0
+		
+		#Parametros dl pwm
+		pwm = 50
+		
+		#Vairables de tiempo
+		dt = 0        # Diferencial de tiempo. *Es el tiempo que espera el sistema para aplciar de nuevo los calculos de ajuste del PID.*
+		epsilon = 0.7
+		timepast = 0 
+	
+		d = 20
+		
+		while not detectarEsquina(1000, 0.1, 0, 0):
+			# Mide el tiempo actual
+			timenow  = time()	
+			# Calcula diferencia entre el teimpo actual y el pasado
+			dt = timenow - timepast
+			#Si se supera el epsilon se hace el calculo del PID
+			if dt >= epsilon:
+				self.seguirLinea(pwm, kp, ki, kd, integral)
+				timenow = timepast
+			
+			
+			
+		if bloque: avanzar(d)
+		else: girar(not der)
 
 
 				

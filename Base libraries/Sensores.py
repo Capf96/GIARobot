@@ -37,6 +37,14 @@ class QTR(object):
 			values.append(self.list[i].getValue())
 				
 		return values
+	
+	def average(self):
+		result = 0
+		suma = 0
+		for i in range(len(self.list)):
+			result += i*1000*self.list[i].getValue()
+			suma += self.list[i].getValue()
+		return (result/suma)
 
 
 

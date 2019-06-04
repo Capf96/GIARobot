@@ -90,7 +90,7 @@ def sensorD():
 
 
 
-alinearBloque():
+def alinearBloque():
 	# Nos alineamos con el bloque
 	
 	# Leemos el valor de los ultrasonidos laterales
