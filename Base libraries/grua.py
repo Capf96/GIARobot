@@ -31,7 +31,7 @@ class Grua(object) :
 	    
 	    self.out = 200
 	    	    
-	def nivel(self, level) :
+	def nivelA(self, level) :
 		if level == 1:
 			while not swiA :
 				bajar()
@@ -91,33 +91,42 @@ class Grua(object) :
 		
 	def nivel(self, n):
 		act = self.ultraS.getDistance()
+	
 		
 		if n == 0:
 			self.nivel(1)
 			print("llegue al nivel 1")
 			self.bajar()
-			time.sleep(3.5)
+			time.sleep(4)
 				
 		elif n == 1:
-			while ((act < 4) or (act > 6)) and self.pi.read(self.pinSB)==1:
-				if (act < 0) or (act > 20):
+			while ((act < 4) or (act > 6)):
+				print(act)
+				if (act < 0) or (act > 20) and self.pi.read(self.pinSB)==1:
 					self.subir()
-				elif (act < 4):
+				elif (act < 4) and self.pi.read(self.pinSB)==1:
 					self.subir()
-				elif (act > 6):
+				elif (act > 6) or self.pi.read(self.pinSB)==0:
 					self.bajar()
 				
 				act = self.ultraS.getDistance()
 		elif n == 2:
-			while ((act < 7.5) or (act > 9)) and self.pi.read(self.pinSB)==1:
-				if (act < 0) or (act > 20):
+			while ((act < 7.5) or (act > 9)):
+				print(act)
+				if (act < 0) or (act > 20)  and self.pi.read(self.pinSB)==1:
 					self.subir()
-				elif (act < 7.5):
+				elif (act < 7.5)  and self.pi.read(self.pinSB)==1:
 					self.subir()
-				elif (act > 9):
+				elif (act > 9) or self.pi.read(self.pinSB)==0:
 					self.bajar()
 				
 				act = self.ultraS.getDistance()
+		
+		elif n == 3:
+			self.subirMax()
+			
+		else:
+			print("El nivel indicado no existe.")
 				
 		self.parar()
 		

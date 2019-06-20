@@ -1,7 +1,9 @@
 import pigpio
 import time
 from subprocess import call 
+
 class UltrasonicS(object):
+	
 	def __init__(self,  pinTrig, pinEcho):
 		self.pinTrig = pinTrig    # pin del trigger
 		self.pinEcho = pinEcho   # pin del echo
@@ -13,13 +15,14 @@ class UltrasonicS(object):
 		self.pi.set_mode(self.pinTrig, pigpio.OUTPUT)
 		self.pi.set_mode(self.pinEcho, pigpio.INPUT)
 		
-		#Nos aseguramos que el pin d e salida del trigger este en Low (0)
+		#Nos aseguramos que el pin de salida del trigger este en Low (0)
 		self.pi.write(self.pinTrig,0)
 		
 	def getDistance(self):
 		medida = 0
 		start = 0
 		end = 0
+		
 		for i in range(0,5):
 			#apagamos el pin Trig
 			self.pi.write(self.pinTrig,0)
