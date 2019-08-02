@@ -12,5 +12,4 @@ class Arduino(object):
 			s = result.decode('utf-8').split(' ')
 			for i in range(len(s)):
 				s[i]=int(s[i])
-			self.values = s
 		return s
