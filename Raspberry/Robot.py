@@ -1,14 +1,22 @@
 from MotorControl import Motors
-from arduinoReader import Arduino
+from ArduinoReader import Arduino
+from StepperMotor import Grua
+from time import sleep, time
+import pigpio
+import serial
 
 motores = Motors(17,27) # Pines GPIO17 y GPIO27
 arduino = Arduino()
+grua = Grua(24, 23, 22, 27)
 
 class Robot(object):
 	
 	def followLine(self, pwm):
 		"""Utiliza un PID con calculando el error con respecto a la linea 
-		usando el QTR para seguir la linea ."""
+		usando el QTR para seguir la linea.
+		
+		Argumentos:
+		pwm:    Velocidad."""
 		
 		kp = float( 0.014 ) # 50/3500 
 		ki = 0.0
@@ -25,10 +33,10 @@ class Robot(object):
 			derivativo = (proporcional - proporcional_pasado)
 
 			#Se acota el valor del valor integral del PID
-			if integral>1000: 
-				integral=1000
-			if integral<-1000: 
-				integral=-1000
+			if integral > 1000: 
+				integral = 1000
+			if integral < -1000: 
+				integral = -1000
 				
 			#Calculamos la funcion PID
 			delta_pwm = ( proporcional * kp ) + ( derivativo * kd ) + ( integral * ki )
@@ -37,11 +45,18 @@ class Robot(object):
 			if (delta_pwm <= 0):
 				motores.setMotorL(pwm - delta_pwm)
 				motores.setMotorR(pwm)
-			if (delta_pwm >0):
+			if (delta_pwm > 0):
 				motores.setMotorL(pwm)
 				motores.setMotorR(pwm + delta_pwm)
 
 			proporcional_pasado = proporcional
-		
-		
 	
+		
+	def stop(self):
+		"""Detiene todos los componentes del robot."""
+		
+		motores.stop()
+		#iman.stop()
+		grua.setStep(0, 0, 0, 0)
+		
+
