@@ -17,7 +17,8 @@ class Robot(object):
 		
 		ARGUMENTOS:
 		prev: Posicion previa.
-		now: Posicion actual. """
+		now: Posicion actual. 
+		foward: True si la rueda gira hacia adelante; False en caso contrario."""
 		
 		dif = ((-1) ** int(foward)) * (prev - now)
 		
@@ -31,20 +32,23 @@ class Robot(object):
 		"""Detiene y apaga todos los componentes del robot."""
 		
 		motores.stop()
-		#iman.stop()
+		# iman.stop()
+		# grua.nivel(0)
 		grua.setStep(0, 0, 0, 0)
 		
 		
-	def foward(self, pwm):
-		"""Mueve al robot en linea recta hacia adelante con una velocidad determinada.
+	def moveStraight(self, pwm, foward, dist = 0):
+		"""Mueve al robot en linea recta.
 		
 		ARGUMENTOS:
-		pwm: Velocidad."""
+		pwm: Velocidad.
+		foward: True si el robot avanza hacia adelante; False en caso contrario.
+		dist: Indica la distancia que se va a mover el robot; 0 indica distancia indeterminada (valor predeterminado)."""
 		
 		# Parametros del PID
-		kp = 5 # Constante Proporcional
-		ki = 0	  # Constante Integral
-		kd = 0	  # Constante Diferencial
+		kp = 5 		# Constante Proporcional
+		ki = 0	  	# Constante Integral
+		kd = 0	  	# Constante Diferencial
 		
 		# Variables de tiempo
 		dt = 0        	# Diferencial de tiempo. Es el tiempo que espera el sistema para aplicar
@@ -66,12 +70,15 @@ class Robot(object):
 		# Distancia recorrida
 		distance = 0
 
-		# Radio de las ruedas del robot#
-		r = 4.08 #cm
+		# Radio de las ruedas del robot
+		r = 4.08 # cm
 		
 		pi = 3.141592654 #Valor de pi
+
+		# El valor de la variable es 1 si foward es True, o -1 en caso contrario
+		neg = -((-1) ** int(foward))
 		
-		while True:
+		while not bool(dist) or distance < dist:
 			# Mide el tiempo actual
 			timenow  = time()	
 			# Calcula diferencia entre el tiempo actual y el pasado
@@ -83,8 +90,8 @@ class Robot(object):
 				nowPosR = arduino.getEncoderR()
 				
 				# Diferencia entre los posiciones previas y actuales de los motores
-				difL = difGrados(nowPosL, prePosL, True)
-				difR = difGrados(nowPosR, prePosR, True)
+				difL = difGrados(nowPosL, prePosL, foward)
+				difR = difGrados(nowPosR, prePosR, foward)
 				
 				# Error/diferencia entre la salida de los encoders de esta iteracion
 				dif = difR - difL
@@ -96,9 +103,9 @@ class Robot(object):
 				delta = dif * kp + (dif - pdif / dt) * kd + ki * psum
 
 				# Se modifica la salida de los motores
-				motores.setMotorL(pwm + delta)  	# Se busca igualar la velocidad de uno de los motores con 
+				motores.setMotorL(neg * (pwm + delta))  	# Se busca igualar la velocidad de uno de los motores con 
 													# la del otro por lo tanto las modificaciones solo se realizan a ese motor
-				motores.setMotorR(pwm) 
+				motores.setMotorR(neg * pwm) 
 
 				# La Diferencia Actual 'dif' pasa a ser la diferencia previa 'pdif' #
 				pdif = dif
@@ -115,8 +122,8 @@ class Robot(object):
 				prePosR = nowPosR
 				prePosL = nowPosL
 			
-				# El tiempo actual 'timenow' pasa a ser el tiempo previo 'timepast'
-				timenow = timepast
+				# El tiempo previo 'timepast' pasa a ser el tiempo actual 'timenow'
+				timepast = timenow
 		
 		
 	def followLine(self, pwm):
@@ -125,50 +132,87 @@ class Robot(object):
 		ARGUMENTOS:
 		pwm: Velocidad."""
 		
-		kp = float( 0.014 ) # 50/3500 
+		kp = 0.014 	# 50/3500 
 		ki = 0.0
 		kd = 0.0
 		proporcional_pasado = 0
 		integral = 0
 
+		# Variables de tiempo
+		dt = 0        	# Diferencial de tiempo. Es el tiempo que espera el sistema para aplicar
+						# de nuevo los calculos de ajuste del PID.*
+		epsilon = 0.01
+		timepast = 0 
+
 		while True:
-			position = float( arduino.getAverageQTR() )
+			# Mide el tiempo actual
+			timenow  = time()	
+			# Calcula diferencia entre el tiempo actual y el pasado
+			dt = timenow - timepast
 
-			# Calculamos el valor proporcional, integarl y derivativo del PID basados en la poscicon del sensor, centro 3500
-			proporcional = position - 3500
-			integral = integral + proporcional_pasado;  
-			derivativo = (proporcional - proporcional_pasado)
+			if dt >= epsilon:
 
-			# Se acota el valor del valor integral del PID
-			if integral > 1000: 
-				integral = 1000
-			if integral < -1000: 
-				integral = -1000
-				
-			# Calculamos la funcion PID
-			delta_pwm = ( proporcional * kp ) + ( derivativo * kd ) + ( integral * ki )
+				position = float(arduino.getAverageQTR())
+
+				# Calculamos el valor proporcional, integarl y derivativo del PID basados en la poscicon del sensor, centro 3500
+				proporcional = position - 3500
+				integral = integral + proporcional_pasado;  
+				derivativo = (proporcional - proporcional_pasado)
+
+				# Se acota el valor del valor integral del PID
+				if integral > 1000: 
+					integral = 1000
+				if integral < -1000: 
+					integral = -1000
 					
-			# Evaluamos casos para que el robot no se atrase
-			if (delta_pwm <= 0):
-				motores.setMotorL(pwm - delta_pwm)
-				motores.setMotorR(pwm)
-			if (delta_pwm > 0):
-				motores.setMotorL(pwm)
-				motores.setMotorR(pwm + delta_pwm)
+				# Calculamos la funcion PID
+				delta_pwm = ( proporcional * kp ) + ( derivativo * kd ) + ( integral * ki )
+						
+				# Evaluamos casos para que el robot no se atrase
+				if (delta_pwm <= 0):
+					motores.setMotorL(pwm - delta_pwm)
+					motores.setMotorR(pwm)
+				if (delta_pwm > 0):
+					motores.setMotorL(pwm)
+					motores.setMotorR(pwm + delta_pwm)
 
-			proporcional_pasado = proporcional
+				proporcional_pasado = proporcional
+
+				# El tiempo actual 'timepast' pasa a ser el tiempo previo 'timenow'
+				timepast = timenow
 	
 			
-	def corner(self):
-		"""Procedimiento que se mantiene activo mientras no se detecte una esquina."""
+	def detect(self, corner = False, blockL = False, blockR = False):
+		"""Procedimiento que se mantiene activo mientras no se detecte el objeto indicado por argumento.
+
+		ARGUMENTOS:
+		corner: True si se quiere detectar una esquina, False en caso contrario. Valor predetermiando: False
+		blockL: True si se quiere detectar un bloque a la izquierda, False en caso contrario. Valor predetermiando: False
+		blockR: True si se quiere detectar un bloque a la derecha, False en caso contrario. Valor predetermiando: False
+		"""
 		
-		sensors = arduino.getQTR()
-		negro = 1000 # Valor minimo que se considera que los sensores estan leyendo negro
-		
-		while sensors[0] < negro and sensors[7] < negro:
+		if corner:
 			sensors = arduino.getQTR()
-		
-		
+			negro = 1000 # Valor minimo que se considera que los sensores estan leyendo negro
+			
+			while sensors[0] < negro and sensors[7] < negro:
+				sensors = arduino.getQTR()
+
+		elif blockL:
+			block = arduino.getUltraL()
+			distMax = 23	# Distancia maxima a la que se considera que se detecto un bloque
+
+			while block > distMax:
+				block = arduino.getUltraL()
+
+		elif blockR:
+			block = arduino.getUltraR()
+			distMax = 23	# Distancia maxima a la que se considera que se detecto un bloque
+
+			while block > distMax:
+				block = arduino.getUltraR()
+
+			
 	def turn(self, pwm, ctClockwise):
 		"""Hace girar al robot.
 		
@@ -253,8 +297,8 @@ class Robot(object):
 				prePosR = nowPosR
 				prePosL = nowPosL
 			
-				# El tiempo actual 'timenow' pasa a ser el tiempo previo 'timepast'
-				timenow = timepast
+				# El tiempo previo 'timepast' pasa a ser el tiempo actual 'timenow'
+				timepast = timenow
 
 
-
+				
