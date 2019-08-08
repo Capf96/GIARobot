@@ -2,6 +2,7 @@ from MotorControl import Motors
 from ArduinoReader import Arduino
 from StepperMotor import Grua
 from time import sleep, time
+from multiprocessing import Process
 import pigpio
 import serial
 
@@ -43,7 +44,7 @@ class Robot(object):
 		ARGUMENTOS:
 		pwm: Velocidad.
 		foward: True si el robot avanza hacia adelante; False en caso contrario.
-		dist: Indica la distancia que se va a mover el robot; 0 indica distancia indeterminada (valor predeterminado)."""
+		dist: Indica la distancia que se va a mover el robot; 0 indica distancia indeterminada (Valor predeterminado: 0)."""
 		
 		# Parametros del PID
 		kp = 5 		# Constante Proporcional
@@ -124,6 +125,8 @@ class Robot(object):
 			
 				# El tiempo previo 'timepast' pasa a ser el tiempo actual 'timenow'
 				timepast = timenow
+
+		motores.stop()
 		
 		
 	def followLine(self, pwm):
@@ -180,15 +183,16 @@ class Robot(object):
 
 				# El tiempo actual 'timepast' pasa a ser el tiempo previo 'timenow'
 				timepast = timenow
-	
+
 			
-	def detect(self, corner = False, blockL = False, blockR = False):
+	def detect(self, corner = False, blockL = False, blockR = False, line = False):
 		"""Procedimiento que se mantiene activo mientras no se detecte el objeto indicado por argumento.
 
 		ARGUMENTOS:
-		corner: True si se quiere detectar una esquina, False en caso contrario. Valor predetermiando: False
-		blockL: True si se quiere detectar un bloque a la izquierda, False en caso contrario. Valor predetermiando: False
-		blockR: True si se quiere detectar un bloque a la derecha, False en caso contrario. Valor predetermiando: False
+		corner: True si se quiere detectar una esquina, False en caso contrario (Valor predetermiando: False)
+		blockL: True si se quiere detectar un bloque a la izquierda, False en caso contrario (Valor predetermiando: False)
+		blockR: True si se quiere detectar un bloque a la derecha, False en caso contrario (Valor predetermiando: False)
+		line: True si se quiere detectar una linea, False en caso contrario (Valor predetermiando: False)
 		"""
 		
 		if corner:
@@ -211,6 +215,13 @@ class Robot(object):
 
 			while block > distMax:
 				block = arduino.getUltraR()
+
+		elif line:
+			sensors = arduino.getQTR()
+			negro = 1000 # Valor minimo que se considera que los sensores estan leyendo negro
+
+			while all((sensor<negro) for sensor in sensors):
+				sensors = arduino.getQTR()
 
 			
 	def turn(self, pwm, ctClockwise):
@@ -301,4 +312,105 @@ class Robot(object):
 				timepast = timenow
 
 
-				
+	################################# FUNCIONES COMPUESTAS ###############################
+	def movStrUntObj(self, pwm, foward, Corner = False, BlockL = False, BlockR = False, Line = False):
+		"""Mueve el robot en linea recta hasta detectar el objeto indicado.
+
+		ARGUMENTOS:
+		pwm: Velocidad.
+		foward: True indica que el robot se mueve hacia adelante; False indica el caso contrario
+		Corner: True si se quiere detectar una esquina, False en caso contrario (Valor predetermiando: False)
+		BlockL: True si se quiere detectar un bloque a la izquierda, False en caso contrario (Valor predetermiando: False)
+		BlockR: True si se quiere detectar un bloque a la derecha, False en caso contrario (Valor predetermiando: False)
+		Line: True si se quiere detectar una linea, False en caso contrario (Valor predetermiando: False)
+		"""
+
+		p1 = Process(target = self.moveStraight, args = (pwm, foward)) 
+		p1.start()
+		p2 = Process(target = self.detect, args = (corner = Corner, blockL = BlockL, blockR = BlockR, line = Line))
+		p2.start()
+
+		while p2.is_alive():
+			pass
+	
+		p1.terminate()
+		motores.stop()
+
+
+	def fllwLineUntObj(self, pwm, Corner = False, BlockL = False, BlockR = False, Line = False):
+		"""El robot sigue la linea negra hasta detectar el objeto indicado.
+
+		ARGUMENTOS:
+		pwm: Velocidad.
+		Corner: True si se quiere detectar una esquina, False en caso contrario (Valor predetermiando: False)
+		BlockL: True si se quiere detectar un bloque a la izquierda, False en caso contrario (Valor predetermiando: False)
+		BlockR: True si se quiere detectar un bloque a la derecha, False en caso contrario (Valor predetermiando: False)
+		Line: True si se quiere detectar una linea, False en caso contrario (Valor predetermiando: False)
+		"""
+
+		p1 = Process(target = self.followLine, args = (pwm)) 
+		p1.start()
+		p2 = Process(target = self.detect, args = (corner = Corner, blockL = BlockL, blockR = BlockR, line = Line))
+		p2.start()
+
+		while p2.is_alive():
+			pass
+	
+		p1.terminate()
+		motores.stop()
+
+
+	def turnUntLine(self, pwm, ctClockwise):
+		"""El robot gira hasta conseguir una linea.
+
+		ARGUMENTOS:
+		pwm: Velocidad.
+		ctClockwise: True indica sentido anti-horario; False indica sentido horario.
+		"""
+
+		p1 = Process(target = self.turn, args = (pwm, ctClockwise)) 
+		p1.start()
+		p2 = Process(target = self.detect, args = (line = True))
+		p2.start()
+
+		while p2.is_alive():
+			pass
+	
+		p1.terminate()
+		motores.stop()
+
+
+	def align(self, pwm, foward):
+		"""El robot se alinea con una linea negra.
+
+		ARGUMENTOS:
+		pwm: Velocidad.
+		foward: True indica que el robot iba avanzando antes de llegar a la linea; False indica que iba retrocediendo.
+		"""
+
+		# El robot se mueve en linea recta hasta conseguir una linea
+		movStrUntObj(pwm, foward, Line = True)
+
+		# Verificamos los sensores QTR
+		sensors = arduino.getQTR()
+
+		# Verificamos si el primer sensor QTR que detecto la linea fue el izquierdo (True) o el derecho (False)
+		izq = sensors[0] > sensors[7]
+
+		# El valor de la variable es 1 si foward es True, o -1 en caso contrario
+		negro = 1000
+
+		# El valor de la variable es 1 si foward es True, o -1 en caso contrario
+		neg = -((-1) ** int(foward))
+
+		if izq:
+			while sensors[7] < 1000:
+				motores.setMotorR(neg * pwm)
+				sensors = arduino.getQTR()
+				sleep(0.01)
+		else:
+			while sensors[0] < 1000:
+				motores.setMotorL(neg * pwm)
+				sensors = arduino.getQTR()
+				sleep(0.01)
+
