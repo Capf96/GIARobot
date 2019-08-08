@@ -4,7 +4,7 @@ ser.flushInput()
 
 class Arduino(object):
 
-	def getQTR (self):
+	def getQTR(self):
 		data = ('').join(list(ser.readline()))
 		if data:
 			result = str(ser.readline().strip())
@@ -51,7 +51,7 @@ class Arduino(object):
 			return int(s[12])
 		
 		
-	def getEncoderL(self):
+	def getEncoderR(self):
 		data = ('').join(list(ser.readline()))
 		if data:
 			result = str(ser.readline().strip())
