@@ -25,6 +25,7 @@ class Motors(object):
 			power = 100
 		elif power <=-100:
 			power = -100
+		power = -power
 		self.pi.set_servo_pulsewidth(self.pinL, -5*power+1500)
 		self.pi.set_servo_pulsewidth(self.pinR, 5*power+1500)
       
@@ -34,7 +35,7 @@ class Motors(object):
 		self.pi.set_servo_pulsewidth(self.pinR, 1500)
 
 
-	def setMotorL(self, power):
+	def setMotorR(self, power):
 		if power >= 100:
 			power = 100
 		elif power <=-100:
@@ -42,7 +43,7 @@ class Motors(object):
 		self.pi.set_servo_pulsewidth(self.pinR, -5*power+1500) # Estan al revez, pero, funciona
 		
 		
-	def setMotorR(self, power):
+	def setMotorL(self, power):
 		if power >= 100:
 			power = 100
 		elif power <=-100:

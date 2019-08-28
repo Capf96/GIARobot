@@ -1,8 +1,18 @@
 import serial
 ser = serial.Serial('/dev/ttyACM0', 57600)
-ser.flushInput()
+ser.reset_input_buffer()
 
 class Arduino(object):
+
+	def getAll(self):
+		data = ('').join(list(ser.readline()))
+		if data:
+			result = str(ser.readline().strip())
+			result = unicode(result, errors = 'replace' )
+			s = result.decode('utf-8').split(' ')
+			for i in range(len(s)):
+				s[i]=float(s[i])
+		return s
 
 	def getQTR(self):
 		data = ('').join(list(ser.readline()))
@@ -10,9 +20,19 @@ class Arduino(object):
 			result = str(ser.readline().strip())
 			result = unicode(result, errors = 'replace' )
 			s = result.decode('utf-8').split(' ')
-			for i in range(len(s)):
+			for i in range(8):
 				s[i]=int(s[i])
 		return s[0:8]
+		
+	def getQTR2(self):
+		data = ('').join(list(ser.readline()))
+		if data:
+			result = str(ser.readline().strip())
+			result = unicode(result, errors = 'replace' )
+			s = result.decode('utf-8').split(' ')
+			for i in range(8):
+				s[i]=int(s[i])
+		return s[0:9]
 		
 		
 	def getUltraL(self):
@@ -21,7 +41,7 @@ class Arduino(object):
 			result = str(ser.readline().strip())
 			result = unicode(result, errors = 'replace' )
 			s = result.decode('utf-8').split(' ')
-			return int(s[9])
+			return float(s[9])
 		
 		
 	def getUltraR(self):
@@ -30,7 +50,7 @@ class Arduino(object):
 			result = str(ser.readline().strip())
 			result = unicode(result, errors = 'replace' )
 			s = result.decode('utf-8').split(' ')
-			return int(s[11])
+			return float(s[11])
 	
 	
 	def getUltraC(self):
@@ -39,7 +59,7 @@ class Arduino(object):
 			result = str(ser.readline().strip())
 			result = unicode(result, errors = 'replace' )
 			s = result.decode('utf-8').split(' ')
-			return int(s[10])
+			return float(s[10])
 		
 		
 	def getEncoderL(self):
@@ -48,7 +68,7 @@ class Arduino(object):
 			result = str(ser.readline().strip())
 			result = unicode(result, errors = 'replace' )
 			s = result.decode('utf-8').split(' ')
-			return int(s[12])
+			return 360 - float(s[12])
 		
 		
 	def getEncoderR(self):
@@ -57,7 +77,7 @@ class Arduino(object):
 			result = str(ser.readline().strip())
 			result = unicode(result, errors = 'replace' )
 			s = result.decode('utf-8').split(' ')
-			return int(s[13])
+			return float(s[13])
 		
 		
 	def getAverageQTR(self):
@@ -66,4 +86,4 @@ class Arduino(object):
 			result = str(ser.readline().strip())
 			result = unicode(result, errors = 'replace' )
 			s = result.decode('utf-8').split(' ')
-			return int(s[8])
+			return float(s[8])
