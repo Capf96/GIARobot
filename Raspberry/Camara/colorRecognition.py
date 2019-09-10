@@ -35,4 +35,4 @@ for (lower, upper, invert) in boundaries:
  
     # show the images
     cv2.imshow("images", np.hstack([image, output]))
-    cv2.waitKey(0)
+    cv2.waitKey(0) 
