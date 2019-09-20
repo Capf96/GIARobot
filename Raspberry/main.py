@@ -13,6 +13,9 @@ motores.stop()
 
 sleep(2)
 
+while True:
+	a  = input("")
+	motores.run(a)
 
 #robot.followLine(30)
 """	
