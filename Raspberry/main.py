@@ -11,7 +11,19 @@ arduino = Arduino()
 pwm = 30
 motores.stop()
 
-arduino.getQTR()
-robot.movStrUntObj(False, Line = True)
+sleep(2)
+
+
+#robot.followLine(30)
+"""	
+
+robot.movStrUntObj(True, Slow = False, Line = True)
+robot.moveStraight(True, dist = 7, slow = False)
+robot.turnUntLine(True)
+robot.fllwLineUntObj(pwm, Corner = True)
+robot.moveStraight(True, dist = 7, slow = False)
+robot.turnUntLine(False)
+robot.fllwLineUntObj(pwm, BlockL = True, dist = 25)
 
 motores.stop()
+"""

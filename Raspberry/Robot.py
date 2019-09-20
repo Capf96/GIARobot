@@ -68,23 +68,31 @@ class Robot(object):
 		motores.stop()
 		
 		
-	def moveStraight(self, foward, dist = 0):	# CHECK
+	def moveStraight(self, foward, dist = 0, slow = True):	# CHECK
 		"""Mueve al robot en linea recta.
 		
 		ARGUMENTOS:
 		pwm: Velocidad.
 		foward: True si el robot avanza hacia adelante; False en caso contrario.
 		dist: Indica la distancia que se va a mover el robot; 0 indica distancia indeterminada (Valor predeterminado: 0)."""
+		
+		# Definimos la velocidad de los motores.
+		if slow:
+			velLF, velRF, velLB, velRB = 20, 23.5, -25.05, -20
+		else:
+			velLF, velRF, velLB, velRB = 50, 70, -40.31, -38.55
+			
+			
 			
 		if foward:
-			motores.setMotorL(20)  	# 41.9	|	42.4 	|	20
-			motores.setMotorR(23.5)	# 99.55	| 	98 		|	23.5
+			motores.setMotorL(velLF)  	# 	41.9	|	42.4 	|	20
+			motores.setMotorR(velRF)	# 	99.55	| 	98 		|	23.5
 			
 			t = self.distToTime(dist - 0.5, foward)
 			
 		else:
-			motores.setMotorL(-25.05)		#	-40.31	|	-27		|	-25.05
-			motores.setMotorR(-20)			#	-38.55	|	-24.5	|	-20
+			motores.setMotorL(velLB)	#	-40.31	|	-27		|	-25.05
+			motores.setMotorR(velRB)	#	-38.55	|	-24.5	|	-20
 			
 			t = self.distToTime(dist, foward)
 			
@@ -155,7 +163,7 @@ class Robot(object):
 				timepast = timenow
 
 			
-	def detect(self, corner = False, blockL = False, blockR = False, dist = 0, line = False):	# Checks: corner, blockL, line
+	def detect(self, corner = False, blockL = False, blockR = False, dist = 0, line = False):	# CHECK
 		"""Procedimiento que se mantiene activo mientras no se detecte el objeto indicado por argumento.
 
 		ARGUMENTOS:
@@ -170,7 +178,7 @@ class Robot(object):
 		
 		if corner:
 			sensors = arduino.getQTR()
-			negro = 1000 # Valor minimo que se considera que los sensores estan leyendo negro
+			negro = 1500 # Valor minimo que se considera que los sensores estan leyendo negro
 			
 			while sensors[0] < negro and sensors[7] < negro:
 				sensors = arduino.getQTR()
@@ -189,7 +197,7 @@ class Robot(object):
 
 		elif line:
 			sensors = arduino.getQTR()
-			negro = 2000 # Valor minimo que se considera que los sensores estan leyendo negro
+			negro = 1500 # Valor minimo que se considera que los sensores estan leyendo negro
 			
 			while all((sensor<negro) for sensor in sensors):
 				sensors = arduino.getQTR()
@@ -213,7 +221,7 @@ class Robot(object):
 
 
 	################################# FUNCIONES COMPUESTAS ###############################
-	def movStrUntObj(self, foward, BlockL = False, BlockR = False, dist = 0, Line = False):		# Checks: Line, BlockL
+	def movStrUntObj(self, foward, Slow = True, BlockL = False, BlockR = False, dist = 0, Line = False):		# CHECK
 		"""Mueve el robot en linea recta hasta detectar el objeto indicado.
 
 		ARGUMENTOS:
@@ -225,7 +233,7 @@ class Robot(object):
 		Line: True si se quiere detectar una linea, False en caso contrario (Valor predetermiando: False)
 		"""
 
-		p1 = Process(target = self.moveStraight, args = (foward, 0)) 
+		p1 = Process(target = self.moveStraight, args = (foward, 0, Slow)) 
 		p1.start()
 		p2 = Process(target = self.detect, args = (False, BlockL, BlockR, dist, Line,))
 		p2.start()
@@ -238,7 +246,7 @@ class Robot(object):
 		motores.stop()
 
 
-	def fllwLineUntObj(self, pwm, Corner = False, BlockL = False, BlockR = False, dist = 0, Bifur = False):		# Checks: Corner, Bifur, BlockL
+	def fllwLineUntObj(self, pwm, Corner = False, BlockL = False, BlockR = False, dist = 0, Bifur = False):		# CHECK
 		"""El robot sigue la linea negra hasta detectar el objeto indicado.
 
 		ARGUMENTOS:
@@ -408,37 +416,34 @@ class Robot(object):
 		motores.stop()
 
 
-	def align(self, pwm, foward):					# CHECK
-		"""El robot se alinea con una linea negra.
+	def align(self, pwm):					# CHECK
+		"""El robot avanza y se alinea con una linea negra.
 
 		ARGUMENTOS:
-		pwm: Velocidad.
-		foward: True indica que el robot iba avanzando antes de llegar a la linea; False indica que iba retrocediendo.
+		pwm: Velocidad del giro.
 		"""
 		# Verificamos los sensores QTR
 		sensors = arduino.getQTR()
 
 		# El robot se mueve en linea recta hasta conseguir una linea
-		self.movStrUntObj(foward, Line = True)
+		self.movStrUntObj(True, Line = True)
 
 		# Verificamos si el primer sensor QTR que detecto la linea fue el izquierdo (True) o el derecho (False)
 		izq = sum(sensors[i] for i in range(3)) < sum(sensors[i] for i in range(5, 8))
 
 		# El valor de la variable es 1 si foward es True, o -1 en caso contrario
-		negro = 2000
+		negro = 1500
 
-		# El valor de la variable es 1 si foward es True, o -1 en caso contrario
-		neg = -((-1) ** int(foward))
 
 		if izq:
 			while sensors[0] < negro:
-				motores.setMotorR(neg * pwm)
-				motores.setMotorL(- (neg * pwm) / 2)
+				motores.setMotorR(pwm)
+				motores.setMotorL(-pwm / 2)
 				sensors = arduino.getQTR()
 		else:
 			while sensors[7] < negro:
-				motores.setMotorR(-neg * pwm)
-				motores.setMotorL(neg * pwm / 2)
+				motores.setMotorR(-pwm)
+				motores.setMotorL(pwm / 2)
 				sensors = arduino.getQTR()
 				
 
