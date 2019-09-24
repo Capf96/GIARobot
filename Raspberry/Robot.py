@@ -6,7 +6,7 @@ from multiprocessing import Process
 import pigpio
 import serial
 
-motores = Motors(17,27) # Pines GPIO17 y GPIO27
+motores = Motors(20,26) # Pines GPIO17 y GPIO27
 arduino = Arduino()
 grua = Grua(24, 23, 22, 27)
 ser = serial.Serial('/dev/ttyACM0', 57600)
@@ -78,23 +78,24 @@ class Robot(object):
 		
 		# Definimos la velocidad de los motores.
 		if slow:
-			velLF, velRF, velLB, velRB = 20, 23.5, -25.05, -20
+			velLF, velRF, velLB, velRB = 20, 21, -25.05, -20
 		else:
 			velLF, velRF, velLB, velRB = 50, 70, -40.31, -38.55
 			
 			
 			
 		if foward:
-			motores.setMotorL(velLF)  	# 	41.9	|	42.4 	|	20
-			motores.setMotorR(velRF)	# 	99.55	| 	98 		|	23.5
+			motores.setMotorL(velLF)  	# 	50.00	|	20.00
+			motores.setMotorR(velRF)	# 	70.00	| 	21.00
 			
 			t = self.distToTime(dist - 0.5, foward)
 			
 		else:
-			motores.setMotorL(velLB)	#	-40.31	|	-27		|	-25.05
-			motores.setMotorR(velRB)	#	-38.55	|	-24.5	|	-20
+			motores.setMotorL(velLB)	#	-40.31	|	-25.05
+			motores.setMotorR(velRB)	#	-38.55	|	-20
 			
 			t = self.distToTime(dist, foward)
+
 			
 		while not bool(dist):
 			pass
@@ -211,8 +212,8 @@ class Robot(object):
 		clockwise: True indica sentido anti-horario; False indica sentido horario"""
 
 		neg = ((-1) ** int(clockwise))
-		motores.setMotorL((-neg) * 30)  
-		motores.setMotorR(neg * 30)
+		motores.setMotorL((-neg) * 20)  
+		motores.setMotorR(neg * 20)
 		t = self.angToTime(angle, clockwise)
 		sleep(t)
 		motores.stop()
@@ -246,7 +247,7 @@ class Robot(object):
 		motores.stop()
 
 
-	def fllwLineUntObj(self, pwm, Corner = False, BlockL = False, BlockR = False, dist = 0, Bifur = False):		# CHECK
+	def fllwLineUntObj(self, pwm, Corner = False, BlockL = False, BlockR = False, dist = 0, Bifur = False, Time = False, tm = 0):		# CHECK
 		"""El robot sigue la linea negra hasta detectar el objeto indicado.
 
 		ARGUMENTOS:
@@ -269,9 +270,8 @@ class Robot(object):
 		dt = 0        	# Diferencial de tiempo. Es el tiempo que espera el sistema para aplicar
 						# de nuevo los calculos de ajuste del PID.*
 		epsilon = 0
-		timepast = 0 
-		
-		# n = 15 borrar
+		timepast = 0
+		lapse = 0
 		
 		ser.reset_input_buffer()
 		
@@ -286,11 +286,13 @@ class Robot(object):
 		q = (sensors[0] < 1000 and sensors[7] < 1000) and Bifur
 		r = (dL > dist or dL == 0) and BlockL
 		s = (dR > dist or dR == 0) and BlockR
+		t = (lapse < tm) and Time
+		
 				
-		while p or q or r or s:
+		while p or q or r or s or t:
 			
 			# Mide el tiempo actual
-			timenow  = time()	
+			timenow = time()	
 			# Calcula diferencia entre el tiempo actual y el pasado
 			dt = timenow - timepast
 
@@ -325,12 +327,16 @@ class Robot(object):
 			sensors = ard[0:8]
 			dL = ard[9]
 			dR = ard[11]
+			
+			if dt < 2:
+				lapse += dt
 						
 			# Expresiones booleanas para el while
 			p = any(sensor > 1000 for sensor in sensors) and Corner
 			q = (sensors[0] < 1000 and sensors[7] < 1000) and Bifur
 			r = (dL > dist or dL == 0) and BlockL
 			s = (dR > dist or dR == 0) and BlockR
+			t = (lapse < tm) and Time
 				
 		motores.stop()
 				
@@ -394,6 +400,7 @@ class Robot(object):
 				timepast = timenow
 				
 			sensors = arduino.getQTR()
+		motores.stop()
 
 
 	def turnUntLine(self, clockwise):				# CHECK		
@@ -416,36 +423,61 @@ class Robot(object):
 		motores.stop()
 
 
-	def align(self, pwm):					# CHECK
-		"""El robot avanza y se alinea con una linea negra.
+	def align(self, pwm, foward):					# CHECK
+		"""El robot se mueve en lineaa recta y se alinea con una linea negra.
 
 		ARGUMENTOS:
 		pwm: Velocidad del giro.
 		"""
-		# Verificamos los sensores QTR
+		neg = -(-1)**int(foward)
+		n = 20
+		while n:
+			sensors = arduino.getQTR()
+			n -= 1
 		sensors = arduino.getQTR()
+		
+		negro = False
 
 		# El robot se mueve en linea recta hasta conseguir una linea
-		self.movStrUntObj(True, Line = True)
+		while not negro:
+			negro = any(sensor > 1000 for sensor in sensors)
+			sensors = arduino.getQTR()
+			motores.run(neg*pwm)
+		
+		# Verificamos los sensores QTR
+		sensors = arduino.getQTR()
+		motores.stop()
 
 		# Verificamos si el primer sensor QTR que detecto la linea fue el izquierdo (True) o el derecho (False)
 		izq = sum(sensors[i] for i in range(3)) < sum(sensors[i] for i in range(5, 8))
+		
 
 		# El valor de la variable es 1 si foward es True, o -1 en caso contrario
 		negro = 1500
+		
+		if foward:
+			kp = 1.25
+		else:
+			kp = 2.5
 
 
 		if izq:
 			while sensors[0] < negro:
-				motores.setMotorR(pwm)
-				motores.setMotorL(-pwm / 2)
+				motores.setMotorR(neg*15)
+				motores.setMotorL(-neg*15 / kp)
 				sensors = arduino.getQTR()
 		else:
 			while sensors[7] < negro:
-				motores.setMotorR(-pwm)
-				motores.setMotorL(pwm / 2)
+				motores.setMotorL(neg*15)
+				motores.setMotorR(-neg*15 / kp)
 				sensors = arduino.getQTR()
 				
+		if not all(sensor > 100 for sensor in sensors):
+			motores.run(-10)
+			sleep(1)
+			self.foward(pwm, True)
+				
+		motores.stop()
 
 
 
