@@ -279,8 +279,7 @@ class Robot(object):
 		sensors = ard[0:8]
 		dL = ard[9]
 		dR = ard[11]
-		
-		
+
 		# Expresiones booleanas para el while
 		p = any(sensor > 1000 for sensor in sensors) and Corner
 		q = (sensors[0] < 1000 and sensors[7] < 1000) and Bifur

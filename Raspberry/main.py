@@ -1,44 +1,32 @@
 from time import sleep, time
 from MotorControl import Motors
 from ArduinoReader import Arduino
+from Estado import Estado
 from Robot import Robot
-#from electroiman import Magnet
+from electroiman import Magnet
+from StepperMotor import Grua
 
 robot = Robot()
 motores = Motors(20,26) # Pines GPIO27 y GPIO18
 arduino = Arduino()
+estado = Estado()
+grua = Grua(19, 16, 06, 12)
+magnet = Magnet(23)
 
-arduino.getAll()
-
-pwm = 15
-motores.stop()
-
-"""while True:
-	print arduino.getQTR()"""	
+magnet.on()
+grua.stepper(3000, 0.003)
+sleep(3)
+magnet.off()
 	
-robot.movStrUntObj(True, Slow = False, Line = True)
-robot.moveStraight(True, dist = 2, slow = False)
-robot.turnUntLine(True)
-robot.fllwLineUntObj(25, Corner = True)
-robot.moveStraight(True, dist = 4, slow = False)
-robot.turnUntLine(False)
-robot.fllwLineUntObj(25, BlockL = True, dist = 25)
-robot.fllwLineUntObj(25, Time = True, tm = 1.2)
-robot.turn(False, 110)
-robot.align(10, False)
-robot.moveStraight(True, dist = 6, slow = False)
-sleep(2)
-robot.turnUntLine(False)
-robot.fllwLineUntObj(25, Corner = True)
-robot.moveStraight(True, dist = 4, slow = False)
-robot.turnUntLine(True)
-robot.fllwLineUntObj(25, Time = True, tm = 0.5)
-robot.fllwLineUntObj(25, Bifur = True)
-robot.fllwLineUntObj(25, BlockR = True, dist = 25)
-robot.fllwLineUntObj(25, Time = True, tm = 0.75)
-robot.turn(False, 110)
-robot.align(10, False)
-robot.moveStraight(True, dist = 60, slow = False)
 
-motores.stop()
+"""
+# Decision dependiendo de la cantidad de bloques en cada jardin, dirA : direccionde giros, dirB direccion del bloque
+if estado.gardenBlocks[0] < maxBlocks:
+	buscarBloqueLateral(True,True)
+elif estado.gardenBlocks[2] < maxBlocks:
+	buscarBloqueLateral(False,False)
+else:
+	buscarBloqueCentro()
+"""
+	
 

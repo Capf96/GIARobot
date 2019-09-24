@@ -74,4 +74,8 @@ class Grua(object):
 				self.setStep(1,0,1,0)
 				time.sleep(delay)
 				
+		self.setStep(0,0,0,0)
+				
+#grua = Grua(19, 16, 06, 12)
+#grua.stepper(1000, 0.003)
 
