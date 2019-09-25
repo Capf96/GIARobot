@@ -10,10 +10,10 @@ class Grua(object):
 		"""Inicializacion de una instancia de la clase Grua.
 		
 		Parametros:
-		pinY: Pin del Puente H perteneciente a la pareja Amarillo-Blanco (Actual 24).
-		pinW: Pin del Puente H perteneciente a la pareja Amarillo-Blanco (Actual 23).
-		pinB: Pin del Puente H perteneciente a la pareja Azul-Rojo (Actual 22).
-		pinR: Pin del Puente H perteneciente a la pareja Azul-Rojo (Actual 27). """
+		pinY: Pin del Puente H perteneciente a la pareja Amarillo-Blanco (Actual 19).
+		pinW: Pin del Puente H perteneciente a la pareja Amarillo-Blanco (Actual 16).
+		pinB: Pin del Puente H perteneciente a la pareja Azul-Rojo (Actual 06).
+		pinR: Pin del Puente H perteneciente a la pareja Azul-Rojo (Actual 12). """
 		
 		self.pinY = pinY
 		self.pinW = pinW
@@ -28,7 +28,7 @@ class Grua(object):
 		GPIO.setup(pinR, GPIO.OUT)
 
 	
-	def setStep(w1, w2, w3, w4):
+	def setStep(self, w1, w2, w3, w4):
 		"""Prende o apaga los pines del Puente H, 1 para prendido y 0 para apagado.
 		
 		Parametros:
@@ -37,13 +37,13 @@ class Grua(object):
 		w3: Pin del Puente H de la pareja Azul-Rojo.
 		w4: Pin del Puente H de la pareja Azul-Rojo. """
 		
-		GPIO.output(pinY, w1)
-		GPIO.output(pinW, w2)
-		GPIO.output(pinB, w3)
-		GPIO.output(pinR, w4)
+		GPIO.output(self.pinY, w1)
+		GPIO.output(self.pinW, w2)
+		GPIO.output(self.pinB, w3)
+		GPIO.output(self.pinR, w4)
 
 
-	def stepper(steps, delay):
+	def stepper(self, steps, delay):
 		"""Hace girar el Stepper Motor "steps" pasos con un retraso de "delay" segundos entre cada paso. 
 			
 			Parametros:
@@ -54,23 +54,28 @@ class Grua(object):
 			
 		if steps > 0:
 			for i in range(0, steps):
-				setStep(1,0,1,0)
+				self.setStep(1,0,1,0)
 				time.sleep(delay)
-				setStep(0,1,1,0)
+				self.setStep(0,1,1,0)
 				time.sleep(delay)
-				setStep(0,1,0,1)
+				self.setStep(0,1,0,1)
 				time.sleep(delay)
-				setStep(1,0,0,1)
+				self.setStep(1,0,0,1)
 				time.sleep(delay)
 				
 		else:
 			for i in range(0, -steps):
-				setStep(1,0,0,1)
+				self.setStep(1,0,0,1)
 				time.sleep(delay)
-				setStep(0,1,0,1)
+				self.setStep(0,1,0,1)
 				time.sleep(delay)
-				setStep(0,1,1,0)
+				self.setStep(0,1,1,0)
 				time.sleep(delay)
-				setStep(1,0,1,0)
+				self.setStep(1,0,1,0)
 				time.sleep(delay)
+				
+		self.setStep(0,0,0,0)
+				
+#grua = Grua(19, 16, 06, 12)
+#grua.stepper(1000, 0.003)
 
