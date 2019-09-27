@@ -20,9 +20,6 @@ def boat_center(color) :
     while(not center) :
         # Capture frame from video
         ret, frame = cap.read()
-        cv2.imshow('frame',frame)
-        if cv2.waitKey(20) & 0xFF == ord('q'):
-            break
 
         # Prepare image
         image = cv2.resize(frame.copy(), (600,600))
@@ -64,7 +61,4 @@ def boat_center(color) :
 
         if(250<=cX<=350) : 
             center = True
-    # When everything done, release the capture
-    cap.release()
-    cv2.destroyAllWindows()
 
