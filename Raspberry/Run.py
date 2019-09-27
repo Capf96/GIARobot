@@ -68,13 +68,13 @@ def leaveBlock(state, green, level):
 	# Nos alineamos con la linea negra
 	robot.align(20, True)
 	# Bajamos la grua
-	grua.move(-level-1)
+	grua.move(-level - 1 + (state.loadedBlocks[int(green)] % 3) )
 	# Apagamos el iman
 	magnet.off()
 	# Retroceder hasta (mas o menos) el estado inicial
 	robot.moveStraight(False, dist = 30, slow = False)
-	# Bajo la grua
-	#grua.move(-state.loadedBlocks[int(green)]%3)
+	# Bajo la grua                                                       ------------------------- ACAAAAAAAAAAAAAAA ----------
+	grua.move(-state.loadedBlocks[int(green)]%3)
 	# Giramos alrededor de 90 grados dependiendo del color del bloque que habiamos cargado antes
 	robot.turn(green, 310)
 	# Actualizamos el estado
@@ -204,7 +204,9 @@ def findCntrlBlock(state):
 
 
 if __name__ == "__main__":
-	magnet.off()
-	grua.move(-3)
-	findLtrlBlock(True, state)
+	#magnet.off()
+	grua.move(-0)
+	for i in range(4):
+		findLtrlBlock(True, state)
+
 
