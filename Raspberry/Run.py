@@ -205,5 +205,5 @@ if __name__ == "__main__":
 	arduino.getAll()
 	magnet.off()
 	grua.move(-3)
-	findLtrlBlock(True, state)
+	#findLtrlBlock(True, state)
 
