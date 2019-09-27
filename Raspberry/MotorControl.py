@@ -1,3 +1,5 @@
+"""Aqui se encuentra la clase Motors que nos permite controlar los motores."""
+
 import pigpio
 import time
 
@@ -31,11 +33,13 @@ class Motors(object):
       
       
 	def stop(self):
+		"""Detiene ambos motores."""
 		self.pi.set_servo_pulsewidth(self.pinL, 1500)
 		self.pi.set_servo_pulsewidth(self.pinR, 1500)
 
 
 	def setMotorR(self, power):
+		"""Establece una potencia al motor derecho."""
 		if power >= 100:
 			power = 100
 		elif power <=-100:
@@ -44,6 +48,7 @@ class Motors(object):
 		
 		
 	def setMotorL(self, power):
+		"""Establece una potencia al motor izquierdo."""
 		if power >= 100:
 			power = 100
 		elif power <=-100:

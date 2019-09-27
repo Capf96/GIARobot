@@ -1,10 +1,18 @@
+"""Aqui se encuentra la clase Arduino que nos permite obtener el valor de todos los sensores."""
+
 import serial
+
 ser = serial.Serial('/dev/ttyACM0', 57600)
 ser.reset_input_buffer()
 
 class Arduino(object):
 
 	def getAll(self):
+		"""Obtenemos un arreglo con el valor de todos los sensores.
+			Los primeros 8 valores representan el QTR.
+			El noveno es la posicion.
+			Los siguientes 3 representan el ultrasonido izquierdo, central y derecho respectivamente.
+		"""
 		data = ('').join(list(ser.readline()))
 		if data:
 			result = str(ser.readline().strip())
@@ -14,7 +22,9 @@ class Arduino(object):
 				s[i]=float(s[i])
 		return s
 
+
 	def getQTR(self):
+		"""Obtenemos un arreglo con los 8 valores del QTR."""
 		data = ('').join(list(ser.readline()))
 		if data:
 			result = str(ser.readline().strip())
@@ -24,18 +34,9 @@ class Arduino(object):
 				s[i]=int(s[i])
 		return s[0:8]
 		
-	def getQTR2(self):
-		data = ('').join(list(ser.readline()))
-		if data:
-			result = str(ser.readline().strip())
-			result = unicode(result, errors = 'replace' )
-			s = result.decode('utf-8').split(' ')
-			for i in range(8):
-				s[i]=int(s[i])
-		return s[0:9]
-		
 		
 	def getUltraL(self):
+		"""Obtenemos el valor del ultrasonido izquierde."""
 		data = ('').join(list(ser.readline()))
 		if data:
 			result = str(ser.readline().strip())
@@ -45,6 +46,7 @@ class Arduino(object):
 		
 		
 	def getUltraR(self):
+		"""Obtenemos el valor del ultrasonido derecho."""
 		data = ('').join(list(ser.readline()))
 		if data:
 			result = str(ser.readline().strip())
@@ -54,6 +56,7 @@ class Arduino(object):
 	
 	
 	def getUltraC(self):
+		"""Obtenemos el valor del ultrasonido central."""
 		data = ('').join(list(ser.readline()))
 		if data:
 			result = str(ser.readline().strip())
@@ -63,6 +66,7 @@ class Arduino(object):
 		
 		
 	def getEncoderL(self):
+		"""Obtenemos el valor del encoder izquierdo."""
 		data = ('').join(list(ser.readline()))
 		if data:
 			result = str(ser.readline().strip())
@@ -72,6 +76,7 @@ class Arduino(object):
 		
 		
 	def getEncoderR(self):
+		"""Obtenemos el valor del encoder derecho."""
 		data = ('').join(list(ser.readline()))
 		if data:
 			result = str(ser.readline().strip())
@@ -81,9 +86,14 @@ class Arduino(object):
 		
 		
 	def getAverageQTR(self):
+		"""Obtenemos la posicion (promedio) entre los 8 sensores QTR."""
 		data = ('').join(list(ser.readline()))
 		if data:
 			result = str(ser.readline().strip())
 			result = unicode(result, errors = 'replace' )
 			s = result.decode('utf-8').split(' ')
 			return float(s[8])
+
+
+if __name__ == "__main__":
+	pass

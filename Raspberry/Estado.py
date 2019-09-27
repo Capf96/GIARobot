@@ -1,34 +1,35 @@
+"""Aqui se encuentra la clase Estado que guarda el estado de los bloques en la pista."""
+
 class Estado(object):
 
 	def __init__(self):
-		self.gardenBlocks = [[[4 for i in range(0, 2)] for j in range(0, 2)] for k in range(0, 3)]
+		self.gardenBlocks = [[4 for j in range(0, 4)] for k in range(0, 3)]
 		"""Bloques restantes en los jardines.
 
-			Primera coordenada: Jardin
-			Segunda coordenada: Fila
-			Tercera coordenada: Columna
+			Primera coordenada: 0 -> Izquierda
+								1 -> Derecha
+								2 -> Central
+			Segunda coordenada: [	00, 01, 
+									10, 11	]
 		Example:
 			[
 				[
-					[ 1, 0],
-					[ 0, 3]
+					1, 0, 0, 3
 				],
 
 				[
-					[ 0, 2],
-					[ 0, 0]
+					0, 2, 0, 0
 				],
 
 				[
-					[ 0, 0],
-					[ 4, 0]
+					0, 0, 4, 0
 				],
 			]
 
 		This is equal to
-				|1|  |0|        |0|  |2|         |0|  |0|
+				|1|  |0|        |0|  |0|         |0|  |2|
 
-				|0|  |3|        |0|  |0|         |4|  |0|
+				|0|  |3|        |4|  |0|         |0|  |0|
 		"""
 
 		self.loadedBlocks = [0, 0, 0]
@@ -47,29 +48,5 @@ class Estado(object):
 			1 -> Verde
 			2 -> Rojo
 		"""
-
-		self.state = [False, False, 0]
-		"""Indica hacia donde se debe ir el robot.
-
-			Primera coordenada: Ir hacia los barcos (True) o al tren (False)
-			Segunda coordenada: Izquierda (True) o derecha (False)
-			Tercera coordenada: Indica que tanto debe avanzar al ir a los barcos
-		"""
-
-
-	def decision(self):
-		"""Indica al robot hacia donde debe moverse inmediatamente despues de tomar un bloque"""
-
-		if self.blockColor == 0:
-			nivel = int(self.loadedBlocks[0] / 4)
-			self.state = [True, True, nivel + 1]
-
-		elif self.blockColor == 1:
-			nivel = int(self.loadedBlocks[1] / 4)
-			self.state = [True, False, nivel + 1]
-
-		elif self.blockColor == 2:
-			direc = bool(self.loadedBlocks[2])
-			self.state = [False, not direc, 0]
 
 
