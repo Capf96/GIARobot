@@ -1,20 +1,31 @@
+"""Aqui se encuentra la clase Robot que contiene los principales procedimientos para controlar los movimientos del robot."""
+
 from MotorControl import Motors
 from ArduinoReader import Arduino
 from StepperMotor import Grua
 from time import sleep, time
 from multiprocessing import Process
+from Electroiman import Magnet
 import pigpio
 import serial
 
 motores = Motors(20,26) # Pines GPIO17 y GPIO27
 arduino = Arduino()
 grua = Grua(24, 23, 22, 27)
+magnet = Magnet(23)
 ser = serial.Serial('/dev/ttyACM0', 57600)
 
 class Robot(object):
 	
 	################################ FUNCIONES BASICAS #################################
 	def angToTime(self, angle, clockwise):		# CHECK
+		"""Funcion que toma un angulo y define cuanto tiempo debe girar el robot para girar dicho angulo.
+
+		ARGUMENTOS:
+		angle: Angulo que se desea girar.
+		clockwise: True indica que el giro es en sentido horario, False indica sentido anti-horario
+		"""
+
 		if clockwise:
 			b0 = -14.9090909091        
 			b1 = 152.272727273
@@ -27,6 +38,13 @@ class Robot(object):
 
 				
 	def distToTime(self, dist, foward):			# CHECK
+		"""Funcion que toma una distancia y define cuanto tiempo debe moverse el robot para desplazarse dicha distancia.
+
+		ARGUMENTOS:
+		dist: Distancia que se desea mover.
+		foward: True indica que se movera hacia adelante, False indica hacia atras.
+		"""
+
 		if foward:
 			b0 = -2.57272727273        
 			b1 = 28.6818181818
@@ -45,7 +63,8 @@ class Robot(object):
 		ARGUMENTOS:
 		prev: Posicion previa.
 		now: Posicion actual. 
-		foward: True si la rueda gira hacia adelante; False en caso contrario."""
+		foward: True si la rueda gira hacia adelante; False en caso contrario.
+		"""
 		
 		dif = ((-1) ** int(foward)) * (prev - now)
 		
@@ -62,7 +81,7 @@ class Robot(object):
 	def stop(self):								# CHECK
 		"""Detiene y apaga todos los componentes del robot."""
 		
-		# iman.stop()
+		magnet.off()
 		# grua.nivel(0)
 		# grua.setStep(0, 0, 0, 0)
 		motores.stop()
@@ -74,15 +93,14 @@ class Robot(object):
 		ARGUMENTOS:
 		pwm: Velocidad.
 		foward: True si el robot avanza hacia adelante; False en caso contrario.
-		dist: Indica la distancia que se va a mover el robot; 0 indica distancia indeterminada (Valor predeterminado: 0)."""
+		dist: Indica la distancia que se va a mover el robot; 0 indica distancia indeterminada (Valor predeterminado: 0).
+		slow: True indica que se movera lentamente, False indica rapidamente (Valor predetermiando: True). """
 		
 		# Definimos la velocidad de los motores.
 		if slow:
 			velLF, velRF, velLB, velRB = 20, 21, -25.05, -20
 		else:
 			velLF, velRF, velLB, velRB = 50, 70, -40.31, -38.55
-			
-			
 			
 		if foward:
 			motores.setMotorL(velLF)  	# 	50.00	|	20.00
@@ -109,7 +127,8 @@ class Robot(object):
 		"""Hace al robot seguir una linea negra.
 		
 		ARGUMENTOS:
-		pwm: Velocidad."""
+		pwm: Velocidad.
+		dummy: Variable sin ningun uso que permite el uso de procesos."""
 		
 		kp = 0.015
 		ki = 0
@@ -158,19 +177,19 @@ class Robot(object):
 
 				proporcional_pasado = proporcional
 				
-				print "Delta: ", delta_pwm, ". Posicion: ", position
 
 				# El tiempo actual 'timepast' pasa a ser el tiempo previo 'timenow'
 				timepast = timenow
 
 			
-	def detect(self, corner = False, blockL = False, blockR = False, dist = 0, line = False):	# CHECK
+	def detect(self, corner = False, blockL = False, blockR = False, blockC= False, dist = 0, line = False):	# CHECK
 		"""Procedimiento que se mantiene activo mientras no se detecte el objeto indicado por argumento.
 
 		ARGUMENTOS:
 		corner: True si se quiere detectar una esquina, False en caso contrario (Valor predetermiando: False)
 		blockL: True si se quiere detectar un bloque a la izquierda, False en caso contrario (Valor predetermiando: False)
 		blockR: True si se quiere detectar un bloque a la derecha, False en caso contrario (Valor predetermiando: False)
+		blockC: True si se quiere detectar un bloque central, False en caso contrario (Valor predetermiando: False)
 		dist: Distancia maxima a la que se considera que se detecto un bloque
 		line: True si se quiere detectar una linea, False en caso contrario (Valor predetermiando: False)
 		"""
@@ -208,8 +227,9 @@ class Robot(object):
 		"""Hace girar al robot.
 		
 		ARGUMENTOS:
-		pwm: Velocidad.
-		clockwise: True indica sentido anti-horario; False indica sentido horario"""
+		clockwise: True indica sentido horario; False indica sentido anti-horario.
+		angle: Angulo aproximado que se desea girar.
+		"""
 
 		neg = ((-1) ** int(clockwise))
 		motores.setMotorL((-neg) * 20)  
@@ -222,7 +242,7 @@ class Robot(object):
 
 
 	################################# FUNCIONES COMPUESTAS ###############################
-	def movStrUntObj(self, foward, Slow = True, BlockL = False, BlockR = False, dist = 0, Line = False):		# CHECK
+	def movStrUntObj(self, foward, Slow = True, BlockL = False, BlockR = False, BlockC = False, dist = 0, Line = False):		# CHECK
 		"""Mueve el robot en linea recta hasta detectar el objeto indicado.
 
 		ARGUMENTOS:
@@ -230,20 +250,24 @@ class Robot(object):
 		Corner: True si se quiere detectar una esquina, False en caso contrario (Valor predetermiando: False)
 		BlockL: True si se quiere detectar un bloque a la izquierda, False en caso contrario (Valor predetermiando: False)
 		BlockR: True si se quiere detectar un bloque a la derecha, False en caso contrario (Valor predetermiando: False)
+		blockC: True si se quiere detectar un bloque central, False en caso contrario (Valor predetermiando: False)
 		dist: Distancia maxima a la que se considera que se detecto un bloque
 		Line: True si se quiere detectar una linea, False en caso contrario (Valor predetermiando: False)
 		"""
 
 		p1 = Process(target = self.moveStraight, args = (foward, 0, Slow)) 
 		p1.start()
-		p2 = Process(target = self.detect, args = (False, BlockL, BlockR, dist, Line,))
+		p2 = Process(target = self.detect, args = (False, BlockL, BlockR, BlockC, dist, Line))
 		p2.start()
 		
-
 		while p2.is_alive():
 			pass
 	
 		p1.terminate()
+
+		if BlockC:
+			self.moveStraight(True, dist = 2, slow = True)
+
 		motores.stop()
 
 
@@ -256,7 +280,10 @@ class Robot(object):
 		BlockL: True si se quiere detectar un bloque a la izquierda, False en caso contrario (Valor predetermiando: False)
 		BlockR: True si se quiere detectar un bloque a la derecha, False en caso contrario (Valor predetermiando: False)
 		dist: Distancia maxima a la que se considera que se detecto un bloque
+		Bifur: True si se quiere detectar una bifurcacion (Valor predeterminado: False)
 		Line: True si se quiere detectar una linea, False en caso contrario (Valor predetermiando: False)
+		Time: True indica que se seguira la linea durante cierto tiempo (Valor predeterminado: False)
+		tm: Tiempo que se desea esperar mientras sigue la linea.
 		"""		
 		
 		# velocidad 30 
@@ -406,7 +433,6 @@ class Robot(object):
 		"""El robot gira hasta conseguir una linea.
 
 		ARGUMENTOS:
-		pwm: Velocidad.
 		Clockwise: True indica sentido horario; False indica sentido anti-horario.
 		"""
 		p2 = Process(target = self.detect, args = (False, False, False, 0, True))
@@ -427,30 +453,22 @@ class Robot(object):
 
 		ARGUMENTOS:
 		pwm: Velocidad del giro.
+		foward: Variable booleana que indica si va hacia adelante.
 		"""
-		neg = -(-1)**int(foward)
-		n = 20
-		while n:
-			sensors = arduino.getQTR()
-			n -= 1
-		sensors = arduino.getQTR()
+		p1 = Process(target = self.moveStraight, args = (foward, 0, True)) 
+		p1.start()
+		p2 = Process(target = self.detect, args = (False, False, False, False, 0, True))
+		p2.start()
 		
-		negro = False
-
-		# El robot se mueve en linea recta hasta conseguir una linea
-		while not negro:
-			negro = any(sensor > 1000 for sensor in sensors)
-			sensors = arduino.getQTR()
-			motores.run(neg*pwm)
-		
-		# Verificamos los sensores QTR
-		sensors = arduino.getQTR()
+		while p2.is_alive():
+			pass
+	
+		p1.terminate()
 		motores.stop()
 
 		# Verificamos si el primer sensor QTR que detecto la linea fue el izquierdo (True) o el derecho (False)
 		izq = sum(sensors[i] for i in range(3)) < sum(sensors[i] for i in range(5, 8))
 		
-
 		# El valor de la variable es 1 si foward es True, o -1 en caso contrario
 		negro = 1500
 		
@@ -462,19 +480,19 @@ class Robot(object):
 
 		if izq:
 			while sensors[0] < negro:
-				motores.setMotorR(neg*15)
-				motores.setMotorL(-neg*15 / kp)
+				motores.setMotorR(neg*pwm)
+				motores.setMotorL(-neg*pwm / kp)
 				sensors = arduino.getQTR()
 		else:
 			while sensors[7] < negro:
-				motores.setMotorL(neg*15)
-				motores.setMotorR(-neg*15 / kp)
+				motores.setMotorL(neg*pwm)
+				motores.setMotorR(-neg*pwm / kp)
 				sensors = arduino.getQTR()
 				
 		if not all(sensor > 100 for sensor in sensors):
-			motores.run(-10)
+			motores.run(-pwm)
 			sleep(1)
-			self.foward(pwm, True)
+			self.align(pwm, True)
 				
 		motores.stop()
 
@@ -597,9 +615,6 @@ class Robot(object):
 				promR += difR
 				n += 1
 
-				print "Ticks Izquierdos: ", difL, ". Ticks Derechos: ", difR, ". Delta: ", delta , ". dist: ", distance
-
-		print "Ticks Promedio Izquierdos: ", promL/n, ". Ticks Promedio Derechos: ", promR/n
 		motores.stop()
 	
 	
@@ -653,12 +668,66 @@ class Robot(object):
 			timenow  = time()	
 			dt = timenow - timepast
 			
-			print "Ticks Izquierdos: ", difL, ". Ticks Derechos: ", difR, "Pos Izquierda: ", nowPosL, ". Pos DerechA: ", nowPosR, "\n"
-			
-		print "Ticks Promedio Izquierdos: ", promL/n, ". Ticks Promedio Derechos: ", promR/n
-			
 		robot.stop()
 	
+
+	def Talign(self, pwm, foward):
+		"""El robot se mueve en lineaa recta y se alinea con una linea negra.
+
+		ARGUMENTOS:
+		pwm: Velocidad del giro.
+		foward: Variable booleana que indica si va hacia adelante.
+		"""
+		neg = -(-1)**int(foward)
+		n = 20
+		while n:
+			sensors = arduino.getQTR()
+			n -= 1
+		sensors = arduino.getQTR()
+		
+		negro = False
+
+		# El robot se mueve en linea recta hasta conseguir una linea
+		while not negro:
+			negro = any(sensor > 1000 for sensor in sensors)
+			sensors = arduino.getQTR()
+			motores.run(neg*pwm)
+		
+		# Verificamos los sensores QTR
+		sensors = arduino.getQTR()
+		motores.stop()
+
+		# Verificamos si el primer sensor QTR que detecto la linea fue el izquierdo (True) o el derecho (False)
+		izq = sum(sensors[i] for i in range(3)) < sum(sensors[i] for i in range(5, 8))
+		
+
+		# El valor de la variable es 1 si foward es True, o -1 en caso contrario
+		negro = 1500
+		
+		if foward:
+			kp = 1.25
+		else:
+			kp = 2.5
+
+
+		if izq:
+			while sensors[0] < negro:
+				motores.setMotorR(neg*15)
+				motores.setMotorL(-neg*15 / kp)
+				sensors = arduino.getQTR()
+		else:
+			while sensors[7] < negro:
+				motores.setMotorL(neg*15)
+				motores.setMotorR(-neg*15 / kp)
+				sensors = arduino.getQTR()
+				
+		if not all(sensor > 100 for sensor in sensors):
+			motores.run(-10)
+			sleep(1)
+			self.foward(pwm, True)
+				
+		motores.stop()
 	
 	
-	
+if __name__ == "__main__":
+	pass

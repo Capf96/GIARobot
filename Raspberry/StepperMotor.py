@@ -1,3 +1,5 @@
+"""Aqui se encuentra la clase Grua que permite controlar la grua (el stepper motor)."""
+
 import RPi.GPIO as GPIO
 import time
 
@@ -75,7 +77,15 @@ class Grua(object):
 				time.sleep(delay)
 				
 		self.setStep(0,0,0,0)
-				
-#grua = Grua(19, 16, 06, 12)
-#grua.stepper(1000, 0.003)
+
+
+	def move(levels):
+		"""Funcion que sube una cantidad determinada de niveles (un nivel es la altura de un bloque)."""
+
+		self.stepper(levels*1220, 0.003)
+	
+
+if __name__ == "__main__":			
+	grua = Grua(19, 16, 06, 12)
+	grua.stepper(1000, 0.003)
 
