@@ -39,39 +39,40 @@ void setup(){
   qtr.setSensorPins((const uint8_t[]){3, 4, 5, 6, 7, 8, 9, 10}, SensorCount);
   qtr.setEmitterPin(2);
 
-  pinMode(LED_BUILTIN, OUTPUT);
-  digitalWrite(LED_BUILTIN, HIGH); // turn on Arduino's LED to indicate we are in calibration mode
+  //pinMode(LED_BUILTIN, OUTPUT);
+  //digitalWrite(LED_BUILTIN, HIGH); // turn on Arduino's LED to indicate we are in calibration mode
+  //for (uint16_t i = 0; i < 400; i++){
+  //  qtr.calibrate();
+  //}
+  //digitalWrite(LED_BUILTIN, LOW); // turn off Arduino's LED to indicate we are through with calibration
 
-  for (uint16_t i = 0; i < 400; i++){
-    qtr.calibrate();
-  }
-  digitalWrite(LED_BUILTIN, LOW); // turn off Arduino's LED to indicate we are through with calibration
-
-  Serial.begin(57600);
+  Serial.begin(57600); // 57600
 }
 
 void loop(){
-  uint16_t position = qtr.readLineBlack(sensorValues);
-
+  qtr.read(sensorValues);
+  uint16_t position = 0;
+  
   for (uint8_t i = 0; i < SensorCount; i++){
     Serial.print(sensorValues[i]);
     Serial.print(' ');
+    position += i*100*sensorValues[i];
   }
   Serial.print(position);
-  Serial.print(" ");
+  Serial.print(' ');
 
   Serial.print(sonar1.ping_cm()); // Ultrasonido Izquierdo
-  Serial.print(" ");
+  Serial.print(' ');
   Serial.print(sonar2.ping_cm()); // Ultrasonido Central
-  Serial.print(" ");
+  Serial.print(' ');
   Serial.print(sonar3.ping_cm()); // Ultrasonido Derecho
+  Serial.print(' ');
+  Serial.print( medirAngulo(pinFeedback_left) );
   Serial.print(" ");
-  Serial.print( mido_angulo(pinFeedback_left) );
-  Serial.print(" ");
-  Serial.println( mido_angulo(pinFeedback_right) );
+  Serial.println( medirAngulo(pinFeedback_right) );
 }
 
-float mido_angulo(int pin) {
+float medirAngulo(int pin) {
   while(1) {  //From Parallax spec sheet
     tHigh  = pulseIn(pin, HIGH);
     tLow   = pulseIn(pin, LOW);
