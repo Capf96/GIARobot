@@ -1,0 +1,25 @@
+import pigpio
+from time import time 
+pi = pigpio.pi()
+pi.set_mode(24, pigpio.INPUT)
+k=0
+kp=0
+
+DutyCycleMax= 0.917
+
+
+DutyCycleMin = 0.029
+while True:
+	to = time()
+	while pi.read(24)==1:
+		pass
+	tHigh = time()-to
+	while pi.read(24)==0:
+		pass
+	tCycle = time()-to
+	DutyCycle =(tHigh / tCycle)
+	out = (DutyCycle-DutyCycleMin)*360/(DutyCycleMax-DutyCycleMax+1)
+	print(out)
+	
+t = time()
+class
