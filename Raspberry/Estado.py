@@ -3,7 +3,7 @@
 class Estado(object):
 
 	def __init__(self):
-		self.gardenBlocks = [[4 for j in range(0, 4)] for k in range(0, 3)]
+		self.gardenBlocks = [[3 for j in range(0, 4)] for k in range(0, 3)]
 		"""Bloques restantes en los jardines.
 
 			Primera coordenada: 0 -> Izquierda

@@ -27,7 +27,7 @@ def foundLevel(state):
 			if state.gardenBlocks[i][j] != 0:
 				# Actualizamos el estado
 				state.gardenBlocks[i][j] -= 1
-				return state.gardenBlocks[i][j] - 1
+				return state.gardenBlocks[i][j]
 
 
 def takeBlock(state, level):
@@ -48,8 +48,6 @@ def takeBlock(state, level):
 	grua.move(1)
 	# Retrocedo un poco para bajar la grua
 	robot.moveStraight(False, dist = 25, slow = True)
-	# Bajamos la grua
-	#grua.move(-level-1)
 	# Actualizamos el estado
 	#state.blockColor = robot.detectColor()
 	state.blockColor = 0
@@ -64,24 +62,24 @@ def leaveBlock(state, green, level):
 	"""
 
 	# Avanzamos hasta conseguir la linea negra
-	robot.movStrUntObj(True, Slow = False, Line = True)
+	robot.movStrUntObj(True, Slow = True, Line = True)
 	# Nos movemos un poco hacia atras para poder alinearnos
 	robot.moveStraight(False, dist = 4, slow = False)
 	# Nos alineamos con la linea negra
 	robot.align(20, True)
 	# Bajamos la grua
-	grua.move(-level)
+	grua.move(-level-1)
 	# Apagamos el iman
 	magnet.off()
 	# Retroceder hasta (mas o menos) el estado inicial
-	robot.moveStraight(True, dist = 30, slow = False)
+	robot.moveStraight(False, dist = 30, slow = False)
 	# Bajo la grua
 	#grua.move(-state.loadedBlocks[int(green)]%3)
 	# Giramos alrededor de 90 grados dependiendo del color del bloque que habiamos cargado antes
-	robot.turn(green, 130)
+	robot.turn(green, 310)
 	# Actualizamos el estado
-	#state.loadedBlocks[int(green)] += 1
-	#state.blockColor = -1
+	state.loadedBlocks[int(green)] += 1
+	state.blockColor = -1
 	
 
 def findLtrlBlock(right, state):
@@ -109,7 +107,7 @@ def findLtrlBlock(right, state):
 	# Seguir linea hasta conseguir el bloque
 	robot.fllwLineUntObj(25, BlockL = right, BlockR = not right, dist = 30)
 	# Avanzar un poco para una mejor alineacion con el bloque
-	robot.fllwLineUntObj(25, Time = True, tm = 2.4)
+	robot.fllwLineUntObj(25, Time = True, tm = 2.9)
 	# Gira alrdedor de 90 grados
 	robot.turn(not right, 110)
 	# Retrocede y alineate con la linea negra 
@@ -135,7 +133,11 @@ def findLtrlBlock(right, state):
 	# Gira alrdedor de 90 grados
 	robot.turn(not right, 110)
 	# Retrocede y alineate con la linea negra 
-	robot.align(20, False)
+	robot.align(27, False)
+	# Avanzar un poco para volverte  analiliar
+	robot.moveStraight(True, dist = 4, slow = False)
+	# Retrocede y alineate con la linea negra 
+	robot.align(25, False)
 	# Avanzar hasta los barcos
 	robot.moveStraight(True, dist = 30, slow = False)
 	# Definimos si el bloque que llevamos es verde y azul
@@ -143,9 +145,9 @@ def findLtrlBlock(right, state):
 	# Si el bloque es azul, avanzamos dependiendo de la cantidad de bloques azul llevados hasta ahora
 	robot.moveStraight(True, dist = 30*(1 + int((state.loadedBlocks[int(green)])/3)), slow = False)
 	# Giramos alrededor de 90 grados
-	robot.turn(green, 210)
+	robot.turn(green, 270)
 	# Dejamos el bloque
-	robot.leaveBlock(state, green, level)
+	leaveBlock(state, green, level)
 	motores.stop()
 
 
@@ -202,8 +204,7 @@ def findCntrlBlock(state):
 
 
 if __name__ == "__main__":
-	arduino.getAll()
 	magnet.off()
 	grua.move(-3)
-	#findLtrlBlock(True, state)
+	findLtrlBlock(True, state)
 
