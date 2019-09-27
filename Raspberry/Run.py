@@ -83,7 +83,7 @@ def findLtrlBlock(right, state):
 	
 	ARGUMENTOS:
 	right: True indica que buscara un bloque en el jardin derecho. False indica que lo buscara en el jardin izquierdo.
-	state: Estado 
+	state: Estado.
 	"""
 	
 	# Avanzar hasta la linea negra
