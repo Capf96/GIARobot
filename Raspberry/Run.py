@@ -4,12 +4,16 @@ from time import sleep, time
 from MotorControl import Motors
 from Estado import Estado
 from Robot import Robot
-from electroiman import Magnet
+from Electroiman import Magnet
+from ArduinoReader import Arduino
+from StepperMotor import Grua
 
 robot = Robot()
-motores = Motors(20,26)	# Pines GPIO20 y GPIO26
+motores = Motors(26,20)	# Pines GPIO20 y GPIO26
 magnet = Magnet(23)
 state = Estado()
+arduino = Arduino()
+grua = Grua(19, 16, 6, 12)
 
 def foundLevel(state):
 	"""Funcion que indica cuanto debe subir la grua dependiendo de su estado.
@@ -26,30 +30,32 @@ def foundLevel(state):
 				return state.gardenBlocks[i][j] - 1
 
 
-def takeBlock(state):
+def takeBlock(state, level):
 	"""Procedimiento que toma un bloque.
 
 	ARGUMENTOS:
 	state: Estado del robot.
 	"""
-
-	# Definimos a que nivel subiremos la grua
-	level = foundLevel(state)
-	# Subir la grua
-	grua.move(level)
+	
 	# Nos acercamos lentamente al bloque
-	robot.movStrUntObj(True, Slow = True, BlockC = True, dist = 2)
+	robot.movStrUntObj(True, Slow = True, BlockC = True, dist = 3)
+	# Subimos la grua
+	grua.move(level)
+	# Nos movemos un poco hacia adelante
+	robot.moveStraight(True, dist = 5, slow = True)
 	# Prendemos el electroiman
 	magnet.on()
+	grua.move(1)
 	# Retrocedo un poco para bajar la grua
-	robot.moveStraight(False, dist = 6, slow = True)
+	robot.moveStraight(False, dist = 25, slow = True)
 	# Bajamos la grua
-	grua.move(-level)
+	#grua.move(-level-1)
 	# Actualizamos el estado
-	state.blockColor = robot.detectColor()
+	#state.blockColor = robot.detectColor()
+	state.blockColor = 0
 
 
-def leaveBlock(state, green):
+def leaveBlock(state, green, level):
 	"""Procedimiento para dejar un bloque lateral una vez que estas entre dos barcos.
 
 	ARGUMENTOS:
@@ -57,25 +63,25 @@ def leaveBlock(state, green):
 	green: Indica de que color es el bloque que lleva actualmente el robot
 	"""
 
-	# Definimos cuanto debe subir la grua
-	grua.move(state.loadedBlocks[int(green)]%3)
 	# Avanzamos hasta conseguir la linea negra
 	robot.movStrUntObj(True, Slow = False, Line = True)
 	# Nos movemos un poco hacia atras para poder alinearnos
 	robot.moveStraight(False, dist = 4, slow = False)
 	# Nos alineamos con la linea negra
 	robot.align(20, True)
+	# Bajamos la grua
+	grua.move(-level)
 	# Apagamos el iman
 	magnet.off()
 	# Retroceder hasta (mas o menos) el estado inicial
 	robot.moveStraight(True, dist = 30, slow = False)
 	# Bajo la grua
-	grua.move(-state.loadedBlocks[int(green)]%3)
+	#grua.move(-state.loadedBlocks[int(green)]%3)
 	# Giramos alrededor de 90 grados dependiendo del color del bloque que habiamos cargado antes
 	robot.turn(green, 130)
 	# Actualizamos el estado
-	state.loadedBlocks[int(green)] += 1
-	state.blockColor = -1
+	#state.loadedBlocks[int(green)] += 1
+	#state.blockColor = -1
 	
 
 def findLtrlBlock(right, state):
@@ -86,15 +92,16 @@ def findLtrlBlock(right, state):
 	state: Estado.
 	"""
 	
+	# Definimos a que nivel subiremos la grua
+	level = foundLevel(state)
 	# Avanzar hasta la linea negra
 	robot.movStrUntObj(True, Slow = False, Line = True)
-	"""
 	# Avanzar un poco para facilitar el giro
-	robot.moveStraight(True, dist = 2, slow = False)
+	robot.moveStraight(True, dist = 6, slow = False)
 	# Girar hasta conseguir la linea negra
 	robot.turnUntLine(right) 
 	# Seguir linea hasta conseguir la esquina
-	robot.fllwLineUntObj(25, Corner = True)
+	robot.fllwLineUntObj(30, Corner = True)
 	# Avanzar un poco para facilitar el giro
 	robot.moveStraight(True, dist = 4, slow = False)
 	# Girar hasta conseguir la linea negra
@@ -102,13 +109,13 @@ def findLtrlBlock(right, state):
 	# Seguir linea hasta conseguir el bloque
 	robot.fllwLineUntObj(25, BlockL = right, BlockR = not right, dist = 30)
 	# Avanzar un poco para una mejor alineacion con el bloque
-	robot.fllwLineUntObj(25, Time = True, tm = 1.2)
+	robot.fllwLineUntObj(25, Time = True, tm = 2.4)
 	# Gira alrdedor de 90 grados
 	robot.turn(not right, 110)
 	# Retrocede y alineate con la linea negra 
-	robot.align(20, False)
+	robot.align(25, False)
 	# Tomamos el bloque correspondiente
-	takeBlock(state)
+	takeBlock(state, level)
 	# Girar hasta conseguir la linea negra
 	robot.turnUntLine(not right)
 	# Seguir la linea hasta conseguir la esquina
@@ -124,7 +131,7 @@ def findLtrlBlock(right, state):
 	# Seguir la linea hasta conseguir un bloque
 	robot.fllwLineUntObj(25, BlockL = not right, BlockR = right, dist = 25)
 	# Seguir la linea poco tiempo para quedar mas centrado entre los dos barcos
-	robot.fllwLineUntObj(25, Time = True, tm = 0.75)
+	robot.fllwLineUntObj(25, Time = True, tm = 1.9)
 	# Gira alrdedor de 90 grados
 	robot.turn(not right, 110)
 	# Retrocede y alineate con la linea negra 
@@ -134,13 +141,12 @@ def findLtrlBlock(right, state):
 	# Definimos si el bloque que llevamos es verde y azul
 	green = (state.blockColor == 1)
 	# Si el bloque es azul, avanzamos dependiendo de la cantidad de bloques azul llevados hasta ahora
-	robot.moveStraight(True, dist = 30(1 + int(state.loadedBlocks[int(green)]/3)), slow = False)
+	robot.moveStraight(True, dist = 30*(1 + int((state.loadedBlocks[int(green)])/3)), slow = False)
 	# Giramos alrededor de 90 grados
-	robot.turn(green, 130)
+	robot.turn(green, 210)
 	# Dejamos el bloque
-	robot.leaveBlock(state, green)
+	robot.leaveBlock(state, green, level)
 	motores.stop()
-	"""
 
 
 def findCntrlBlock(state):
@@ -169,7 +175,7 @@ def findCntrlBlock(state):
 	# Seguimos la linea hasta conseguir un bloque
 	robot.fllwLineUntObj(25, BlockL = True, dist = 25)
 	# Avanzar un poco para una mejor alineacion con el bloque
-	robot.fllwLineUntObj(25, Time = True, tm = 1.2)
+	robot.fllwLineUntObj(25, Time = True, tm = 1)
 	# Gira alrdedor de 90 grados
 	robot.turn(False, 110)
 	# Retrocede y alineate con la linea negra 
@@ -185,7 +191,7 @@ def findCntrlBlock(state):
 	# Giramos hasta conseguir linea
 	robot.turnUntLine(False) 
 	# Seguir la linea poco tiempo para evitar problemas con la deteccion del bloque
-	robot.fllwLineUntObj(25, Time = True, tm = 1)
+	robot.fllwLineUntObj(25, Time = True, tm = 3)
 	# Seguimos la linea hasta conseguir un bloque
 	robot.fllwLineUntObj(25, BlockL = True, dist = 60)
 	# Giramos alrededor de 90 grados
@@ -196,6 +202,8 @@ def findCntrlBlock(state):
 
 
 if __name__ == "__main__":
+	arduino.getAll()
+	magnet.off()
+	grua.move(-3)
 	findLtrlBlock(True, state)
-	
 

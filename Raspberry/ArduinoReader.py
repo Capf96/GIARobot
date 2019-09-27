@@ -12,6 +12,7 @@ class Arduino(object):
 			Los primeros 8 valores representan el QTR.
 			El noveno es la posicion.
 			Los siguientes 3 representan el ultrasonido izquierdo, central y derecho respectivamente.
+			Los ultimos dos son izquierdo y derecho respectivamente.
 		"""
 		data = ('').join(list(ser.readline()))
 		if data:
@@ -20,11 +21,19 @@ class Arduino(object):
 			s = result.decode('utf-8').split(' ')
 			for i in range(len(s)):
 				s[i]=float(s[i])
+				
+			pos = 0; suma = 0
+			for i in range(8):
+				suma += s[i]
+				pos += i*1000*s[i]
+			
+			s[8] = pos/suma
 		return s
 
 
 	def getQTR(self):
 		"""Obtenemos un arreglo con los 8 valores del QTR."""
+		
 		data = ('').join(list(ser.readline()))
 		if data:
 			result = str(ser.readline().strip())
@@ -92,8 +101,19 @@ class Arduino(object):
 			result = str(ser.readline().strip())
 			result = unicode(result, errors = 'replace' )
 			s = result.decode('utf-8').split(' ')
-			return float(s[8])
+			
+			pos = 0; suma = 0
+			for i in range(8):
+				suma += int(s[i])
+				pos += i*1000*int(s[i])
+			
+			return pos/suma
+
 
 
 if __name__ == "__main__":
-	pass
+	arduino = Arduino()
+	ser.reset_input_buffer()
+	while True:
+		print(arduino.getAverageQTR())
+

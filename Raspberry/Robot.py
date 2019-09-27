@@ -9,9 +9,9 @@ from Electroiman import Magnet
 import pigpio
 import serial
 
-motores = Motors(20,26) # Pines GPIO17 y GPIO27
+motores = Motors(26,20) # Pines GPIO17 y GPIO27
 arduino = Arduino()
-grua = Grua(24, 23, 22, 27)
+grua = Grua(19, 16, 6, 12)
 magnet = Magnet(23)
 ser = serial.Serial('/dev/ttyACM0', 57600)
 
@@ -57,7 +57,7 @@ class Robot(object):
 		return (dist - b0)/b1
 	
 		
-	def difGrados(self, now, prev, foward):		# CHECH
+	def difGrados(self, now, prev, foward):		# CHECK
 		"""Obtiene la diferencia entre una posicion pasada y una actual dada en grados.
 		
 		ARGUMENTOS:
@@ -65,17 +65,15 @@ class Robot(object):
 		now: Posicion actual. 
 		foward: True si la rueda gira hacia adelante; False en caso contrario.
 		"""
+		if now < prev:
+			now += 360
 		
-		dif = ((-1) ** int(foward)) * (prev - now)
+		dif = abs(prev - now)
 		
-		if dif >= 250 or (-110 <= dif and dif <= 0):
-			return 0
+		if not foward:
+			dif = 360 - dif
 			
-		
-		if dif >= 0:
-			return dif
-		else:
-			return dif + 360
+		return dif
 			
 	
 	def stop(self):								# CHECK
@@ -98,13 +96,13 @@ class Robot(object):
 		
 		# Definimos la velocidad de los motores.
 		if slow:
-			velLF, velRF, velLB, velRB = 20, 21, -25.05, -20
+			velLF, velRF, velLB, velRB = 14, 16, -25.05, -20
 		else:
-			velLF, velRF, velLB, velRB = 50, 70, -40.31, -38.55
+			velLF, velRF, velLB, velRB = 60, 45, -40.31, -38.55
 			
 		if foward:
-			motores.setMotorL(velLF)  	# 	50.00	|	20.00
-			motores.setMotorR(velRF)	# 	70.00	| 	21.00
+			motores.setMotorL(velLF)  	# 	40.00	|	20.00
+			motores.setMotorR(velRF)	# 	45.00	| 	21.00
 			
 			t = self.distToTime(dist - 0.5, foward)
 			
@@ -214,10 +212,22 @@ class Robot(object):
 
 			while block > dist:
 				block = arduino.getUltraR()
+				
+		elif blockC:
+			block = arduino.getUltraC()
+
+			while block > dist and block < 35:
+				block = arduino.getUltraC()
+				
+				if block <= dist or block >= 35:
+					for i in range(3):
+						block += arduino.getUltraC() / 3
+				
+				
 
 		elif line:
 			sensors = arduino.getQTR()
-			negro = 1500 # Valor minimo que se considera que los sensores estan leyendo negro
+			negro = 1800 # Valor minimo que se considera que los sensores estan leyendo negro
 			
 			while all((sensor<negro) for sensor in sensors):
 				sensors = arduino.getQTR()
@@ -264,9 +274,6 @@ class Robot(object):
 			pass
 	
 		p1.terminate()
-
-		if BlockC:
-			self.moveStraight(True, dist = 2, slow = True)
 
 		motores.stop()
 
@@ -435,7 +442,7 @@ class Robot(object):
 		ARGUMENTOS:
 		Clockwise: True indica sentido horario; False indica sentido anti-horario.
 		"""
-		p2 = Process(target = self.detect, args = (False, False, False, 0, True))
+		p2 = Process(target = self.detect, args = (False, False, False, False, 0, True))
 		p2.start()
 		
 		p1 = Process(target = self.turn, args = (clockwise, 360)) 
@@ -465,6 +472,9 @@ class Robot(object):
 	
 		p1.terminate()
 		motores.stop()
+		
+		sensors = arduino.getQTR()
+		neg = -((-1)**int(foward))
 
 		# Verificamos si el primer sensor QTR que detecto la linea fue el izquierdo (True) o el derecho (False)
 		izq = sum(sensors[i] for i in range(3)) < sum(sensors[i] for i in range(5, 8))
@@ -475,7 +485,7 @@ class Robot(object):
 		if foward:
 			kp = 1.25
 		else:
-			kp = 2.5
+			kp = 3.5
 
 
 		if izq:
@@ -500,7 +510,7 @@ class Robot(object):
 
 
 	################################ TESTING #####################################
-	def TmoveStraight(self, foward, dist = 0):
+	def TmoveStraight(self, pwm, dist = 0):
 		"""Mueve al robot en linea recta.
 		
 		ARGUMENTOS:
@@ -509,10 +519,9 @@ class Robot(object):
 		dist: Indica la distancia que se va a mover el robot; 0 indica distancia indeterminada (Valor predeterminado: 0)."""
 		
 		# Parametros del PID
-		kp = 0.05		# Constante Proporcional
+		kp = 1		# Constante Proporcional
 		ki = 0	  	# Constante Integral
 		kd = 0 	# Constante Diferencial
-		errL = 0	# Error del encoder izquierdo
 		
 		# Variables de tiempo
 		dt = 0        	# Diferencial de tiempo. Es el tiempo que espera el sistema para aplicar
@@ -538,21 +547,8 @@ class Robot(object):
 		r = 2.8 # cm
 		
 		pi = 3.141592654 #Valor de pi
-
-		# El valor de la variable es 1 si foward es True, o -1 en caso contrario
-		neg = -((-1) ** int(foward))
 		
 		n = 10
-		
-		while n:
-			# Posicion previa de las ruedas 
-			prePosL = arduino.getEncoderL()
-			prePosR = arduino.getEncoderR()
-			# Posicion actual de las ruedas
-			nowPosR = prePosR
-			nowPosL = prePosL
-			
-			n = n-1
 			
 		# Para tener un contro del promedio de ticks que giraron ambas ruedas
 		promL = 0
@@ -560,7 +556,7 @@ class Robot(object):
 		n = 0
 			
 		
-		while not bool(dist) or distance < dist:
+		while True:
 						
 			# Mide el tiempo actual
 			timenow  = time()	
@@ -568,29 +564,33 @@ class Robot(object):
 			dt = timenow - timepast
 			
 			if dt >= epsilon:
+				
+				ard = arduino.getAll()
+				
 				# Se lee el valor de los encoders
-				nowPosL = arduino.getEncoderL() + errL
-				nowPosR = arduino.getEncoderR()
+				nowPosL = ard[13]
+				nowPosR = ard[12]
 				
 				
 				# Diferencia entre los posiciones previas y actuales de los motores
-				difL = self.difGrados(nowPosL, prePosL, foward)
-				difR = self.difGrados(nowPosR, prePosR, foward)
+				difL = self.difGrados(nowPosL, prePosL, False)
+				difR = self.difGrados(nowPosR, prePosR, True)
 				
 				
 				# Error/diferencia entre la salida de los encoders de esta iteracion
 				dif = difR - difL
+				
+				print "difR: ", difR, "difL: ", difL, "Dif: ", dif
 				
 				# Suma de los errores(dif) anteriores
 				psum = psum + dif
 
 				# Aplicacion de la funcion de PID
 				delta = dif * kp + (dif - pdif / dt) * kd + ki * psum
-
 				
 				# Se modifica la salida de los motores				
-				motores.setMotorL(40.9 + delta)  	
-				motores.setMotorR(99.55 - delta)
+				motores.setMotorL(pwm + delta)  	
+				motores.setMotorR(pwm)
 
 
 				# La Diferencia Actual 'dif' pasa a ser la diferencia previa 'pdif' #
@@ -621,25 +621,13 @@ class Robot(object):
 	def TprobEncd(self, pwm):
 		timepast = time()
 		dt = 0
-
+		epsilon = 0.001
 		# Posicion previa de las ruedas 
 		prePosL = arduino.getEncoderL()
 		prePosR = arduino.getEncoderR()
 		# Posicion actual de las ruedas
 		nowPosR = prePosR
 		nowPosL = prePosL
-
-		n = 10
-
-		while n:
-			# Posicion previa de las ruedas 
-			prePosL = arduino.getEncoderL()
-			prePosR = arduino.getEncoderR()
-			# Posicion actual de las ruedas
-			nowPosR = prePosR
-			nowPosL = prePosL
-			
-			n = n-1
 			
 		# Para tener un contro del promedio de ticks que giraron ambas ruedas
 		promL = 0
@@ -650,23 +638,26 @@ class Robot(object):
 		motores.setMotorR(pwm)
 
 		while True:
-			# Se lee el valor de los encoders
-			nowPosL = arduino.getEncoderL()
-			nowPosR = arduino.getEncoderR()
-			
-			# Diferencia entre los posiciones previas y actuales de los motores
-			difL = self.difGrados(nowPosL, prePosL, True)
-			difR = self.difGrados(nowPosR, prePosR, True)
-			
-			prePosR = nowPosR
-			prePosL = nowPosL
-			
-			promL += difL
-			promR += difR
-			n += 1
-			
-			timenow  = time()	
-			dt = timenow - timepast
+			dt = time() - timepast
+			if  dt > epsilon:
+				# Se lee el valor de los encoders
+				ard = arduino.getAll()
+				nowPosL = ard[12]
+				nowPosR = ard[13]
+				
+				# Diferencia entre los posiciones previas y actuales de los motores
+				difL = self.difGrados(nowPosL, prePosL, True)
+				difR = self.difGrados(nowPosR, prePosR, False)
+				
+				print difL, " ", difR
+				
+				prePosR = nowPosR
+				prePosL = nowPosL
+				
+				promL += difL
+				promR += difR
+				n += 1
+				timepast = time() 
 			
 		robot.stop()
 	
@@ -730,4 +721,14 @@ class Robot(object):
 	
 	
 if __name__ == "__main__":
-	pass
+	robot = Robot()
+	
+	while True:
+		print arduino.getUltraC()
+	
+	magnet.on()
+	grua.stepper(2000, 0.002)
+	sleep(4)
+	grua.stepper(-2000, 0.002)
+	magnet.off()
+
