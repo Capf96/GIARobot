@@ -82,7 +82,7 @@ class Grua(object):
 	def move(self, levels):
 		"""Funcion que sube una cantidad determinada de niveles (un nivel es la altura de un bloque)."""
 
-		self.stepper(levels*1000, 0.003)
+		self.stepper(int(levels*1000), 0.003)
 	
 
 if __name__ == "__main__":			
