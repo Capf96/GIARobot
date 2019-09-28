@@ -1,4 +1,5 @@
 """Aqui se encuentran las funciones que permiten al robot realizar sus principales tareas."""
+import pdb; 
 
 from time import sleep, time
 from MotorControl import Motors
@@ -38,13 +39,15 @@ def takeBlock(state, level):
 	"""
 	
 	# Nos acercamos lentamente al bloque
-	robot.movStrUntObj(True, Slow = True, BlockC = True, dist = 3)
+	robot.movStrUntObj(True, Slow = True, BlockC = True, dist = 2)
+	# Nos acercamos nuevamente lentamente al bloque para asegurarnos
+	robot.movStrUntObj(True, Slow = True, BlockC = True, dist = 2)
 	# Subimos la grua
 	grua.move(level)
-	# Nos movemos un poco hacia adelante
-	robot.moveStraight(True, dist = 5, slow = True)
 	# Prendemos el electroiman
 	magnet.on()
+	# Nos movemos un poco hacia adelante
+	robot.moveStraight(True, dist = 7, slow = True)
 	grua.move(1)
 	# Retrocedo un poco para bajar la grua
 	robot.moveStraight(False, dist = 25, slow = True)
@@ -60,23 +63,32 @@ def leaveBlock(state, green, level):
 	state: Estado del robot.
 	green: Indica de que color es el bloque que lleva actualmente el robot
 	"""
-
+	
+	# Subimos nivel y medio la grua para evitar que choque con los bloques que ya se encuentran en el barco
+	grua.move(1.5)
 	# Avanzamos hasta conseguir la linea negra
-	robot.movStrUntObj(True, Slow = True, Line = True)
+	robot.movStrUntObj(True, Slow = False, Line = True)
 	# Nos movemos un poco hacia atras para poder alinearnos
 	robot.moveStraight(False, dist = 4, slow = False)
 	# Nos alineamos con la linea negra
 	robot.align(20, True)
-	# Bajamos la grua
-	grua.move(-level - 1 + (state.loadedBlocks[int(green)] % 3) )
+	# Retroceder un poco para volverte a aliniar
+	robot.moveStraight(False, dist = 4, slow = False)
+	# Retrocede y alineate con la linea negra 
+	robot.align(25, True)
+	# Movemos la grua
+	newLvl = -level - 2.5 + (state.loadedBlocks[int(green)] % 3) 
+	grua.move(newLvl)
 	# Apagamos el iman
 	magnet.off()
 	# Retroceder hasta (mas o menos) el estado inicial
 	robot.moveStraight(False, dist = 30, slow = False)
-	# Bajo la grua                                                       ------------------------- ACAAAAAAAAAAAAAAA ----------
-	grua.move(-state.loadedBlocks[int(green)]%3)
+	# Bajo la grua
+	newLvl = -(state.loadedBlocks[int(green)]%3)
+	pdb.set_trace()
+	grua.move(newLvl)
 	# Giramos alrededor de 90 grados dependiendo del color del bloque que habiamos cargado antes
-	robot.turn(green, 310)
+	robot.turn(green, 320)
 	# Actualizamos el estado
 	state.loadedBlocks[int(green)] += 1
 	state.blockColor = -1
@@ -107,7 +119,7 @@ def findLtrlBlock(right, state):
 	# Seguir linea hasta conseguir el bloque
 	robot.fllwLineUntObj(25, BlockL = right, BlockR = not right, dist = 30)
 	# Avanzar un poco para una mejor alineacion con el bloque
-	robot.fllwLineUntObj(25, Time = True, tm = 2.9)
+	robot.fllwLineUntObj(25, Time = True, tm = 2.4)
 	# Gira alrdedor de 90 grados
 	robot.turn(not right, 110)
 	# Retrocede y alineate con la linea negra 
@@ -123,7 +135,7 @@ def findLtrlBlock(right, state):
 	# Girar hasta conseguir la linea negra
 	robot.turnUntLine(right)
 	# Seguir la linea poco tiempo para evitar problemas con la deteccion de la bifurcacion
-	robot.fllwLineUntObj(25, Time = True, tm = 0.5)
+	robot.fllwLineUntObj(25, Time = True, tm = 0.8)
 	# Seguir la linea hasta conseguir una bifurcacion
 	robot.fllwLineUntObj(25, Bifur = True)
 	# Seguir la linea hasta conseguir un bloque
@@ -134,7 +146,7 @@ def findLtrlBlock(right, state):
 	robot.turn(not right, 110)
 	# Retrocede y alineate con la linea negra 
 	robot.align(27, False)
-	# Avanzar un poco para volverte  analiliar
+	# Avanzar un poco para volverte  a aliniar
 	robot.moveStraight(True, dist = 4, slow = False)
 	# Retrocede y alineate con la linea negra 
 	robot.align(25, False)
@@ -145,7 +157,7 @@ def findLtrlBlock(right, state):
 	# Si el bloque es azul, avanzamos dependiendo de la cantidad de bloques azul llevados hasta ahora
 	robot.moveStraight(True, dist = 30*(1 + int((state.loadedBlocks[int(green)])/3)), slow = False)
 	# Giramos alrededor de 90 grados
-	robot.turn(green, 270)
+	robot.turn(green, 320)
 	# Dejamos el bloque
 	leaveBlock(state, green, level)
 	motores.stop()
@@ -205,7 +217,13 @@ def findCntrlBlock(state):
 
 if __name__ == "__main__":
 	#magnet.off()
-	grua.move(-0)
+	#grua.move(-0)
+	arduino.getAll()
+	print "############################### VERIFICA QUE LA GRUA NO VA A BAJAR MAS DE LA CUENTA #########################################"
+	print "Si ya verificaste que la grua no bajara mas alla del nivel 0, escribe 'c' y presiona enter. En caso contrario presiona control+c."
+	pdb.set_trace()
+	grua.move(0)
+	
 	for i in range(4):
 		findLtrlBlock(True, state)
 

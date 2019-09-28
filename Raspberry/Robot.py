@@ -219,8 +219,8 @@ class Robot(object):
 				block = arduino.getUltraC()
 				
 				if block <= dist or block >= 35:
-					for i in range(3):
-						block += arduino.getUltraC() / 3
+					for i in range(2):
+						block = arduino.getUltraC()
 				
 				
 
@@ -251,7 +251,7 @@ class Robot(object):
 
 
 	################################# FUNCIONES COMPUESTAS ###############################
-	def movStrUntObj(self, foward, Slow = True, BlockL = False, BlockR = False, BlockC = False, dist = 0, Line = False, pwm=50):		# CHECK
+	def movStrUntObj(self, foward, Slow = True, BlockL = False, BlockR = False, BlockC = False, dist = 0, Line = False):		# CHECK
 		"""Mueve el robot en linea recta hasta detectar el objeto indicado.
 
 		ARGUMENTOS:
@@ -264,7 +264,7 @@ class Robot(object):
 		Line: True si se quiere detectar una linea, False en caso contrario (Valor predetermiando: False)
 		"""
 
-		p1 = Process(target = self.moveStraight, args = (pwm, dist)) 
+		p1 = Process(target = self.moveStraight, args = (foward, 0, Slow)) 
 		p1.start()
 		p2 = Process(target = self.detect, args = (False, BlockL, BlockR, BlockC, dist, Line))
 		p2.start()
