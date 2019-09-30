@@ -3,17 +3,23 @@
 from MotorControl import Motors
 from ArduinoReader import Arduino
 from StepperMotor import Grua
+from Electroiman import Magnet
+from Encoder import Encoder
 from time import sleep, time
 from multiprocessing import Process
-from Electroiman import Magnet
+
+
 import pigpio
 import serial
+
 
 motores = Motors(26,20) # Pines GPIO17 y GPIO27
 arduino = Arduino()
 grua = Grua(19, 16, 6, 12)
 magnet = Magnet(23)
 ser = serial.Serial('/dev/ttyACM0', 57600)
+encoderR = Encoder()
+encoderL = Encoder() 
 
 class Robot(object):
 	
@@ -219,8 +225,8 @@ class Robot(object):
 				block = arduino.getUltraC()
 				
 				if block <= dist or block >= 35:
-					for i in range(2):
-						block = arduino.getUltraC()
+					for i in range(3):
+						block += arduino.getUltraC() / 3
 				
 				
 
@@ -251,7 +257,7 @@ class Robot(object):
 
 
 	################################# FUNCIONES COMPUESTAS ###############################
-	def movStrUntObj(self, foward, Slow = True, BlockL = False, BlockR = False, BlockC = False, dist = 0, Line = False):		# CHECK
+	def movStrUntObj(self, foward, Slow = True, BlockL = False, BlockR = False, BlockC = False, dist = 0, Line = False, pwm=50):		# CHECK
 		"""Mueve el robot en linea recta hasta detectar el objeto indicado.
 
 		ARGUMENTOS:
@@ -264,7 +270,7 @@ class Robot(object):
 		Line: True si se quiere detectar una linea, False en caso contrario (Valor predetermiando: False)
 		"""
 
-		p1 = Process(target = self.moveStraight, args = (foward, 0, Slow)) 
+		p1 = Process(target = self.moveStraight, args = (pwm, dist)) 
 		p1.start()
 		p2 = Process(target = self.detect, args = (False, BlockL, BlockR, BlockC, dist, Line))
 		p2.start()
@@ -612,63 +618,40 @@ class Robot(object):
 		motores.stop()
 	
 
-	def TmoveStraight(self, pwm, dist = 0):      # CHECK
-		"""Mueve al robot en linea recta.
+	def forwardPID(self, pwm, dist = 0):     
+	"""Mueve al robot en linea recta hacia adelante #Palantekomandat3.
 		
 		ARGUMENTOS:
 		pwm: Velocidad.
-		foward: True si el robot avanza hacia adelante; False en caso contrario.
 		dist: Indica la distancia que se va a mover el robot en mm; 0 indica distancia indeterminada (Valor predeterminado: 0)."""
 		
-		# Definir direccion
-		forward = pwm>0
-		
-		# Convertir dist a cm
-		dist *=2.5
 		
 		# Parametros del PID
-		if forward:
-			kp = 2		# Constante Proporcional
-			ki = 0.01	  	# Constante Integral
-			kd = 0 	# Constante Diferencial
-		else:
-			kp = 0.001		# Constante Proporcional
-			ki = 0	  	# Constante Integral
-			kd = 0 	# Constante Diferencial
+
+		kp = 2		    # Constante Proporcional
+		ki = 0.01	  	# Constante Integral
+		kd = 0 	        # Constante Diferencial
+
+		
 		# Variables de tiempo
 		dt = 0        	# Diferencial de tiempo. Es el tiempo que espera el sistema para aplicar
-						# de nuevo los calculos de ajuste del PID.*
-		epsilon = 0.06 #0.001 muy bajo buen valor 0.01
-		timepast = 0 
+						
+		epsilon = 0.06  #0.001 muy bajo buen valor 0.06
+		timepast = time() #No se puede inicializar en 0 si no calcula mla la distncia 
 		
 		# Inizialicacion de las variables del PID
 		pdif = 0    # Diferencia/error previo
 		psum = 0    # Suma de las diferencias/errores previas
 		
-		n = 10
-		while n:
-			arduino.getAll()
-			n -= 1
-		
-		# Posicion previa de las ruedas 
-		prePosL = arduino.getEncoderL()
-		prePosR = arduino.getEncoderR()
-		# Posicion actual de las ruedas
-		nowPosR = prePosR
-		nowPosL = prePosL
+	
 		
 		# Distancia recorrida
 		distance = 0
 
 		# Radio de las ruedas del robot
 		r = 2.8 # cm
-		pi = 3.141592654 #Valor de pi
 		
-		# Para tener un contro del promedio de ticks que giraron ambas ruedas
-		promL = 0
-		promR = 0	
 
-		ser.reset_input_buffer()
 				
 		while not dist or distance < dist:
 									
@@ -679,24 +662,11 @@ class Robot(object):
 			
 			if dt >= epsilon:		
 			
-				# Se lee el valor de los encoders
-				ard = arduino.getAll()
-				nowPosL = ard[13]
-				nowPosR = ard[12]
+				wR = encoderR.getAngularVelocity()
+				wL = encoderL.getAngularVelocity()
 				
-				# Diferencia entre los posiciones previas y actuales de los motores
-				if forward:
-					difL = self.difGrados(nowPosL, prePosL, False)
-					difR = self.difGrados(nowPosR, prePosR, True)
-				else:
-					difL = self.difGrados(nowPosL, prePosL, True)
-					difR = self.difGrados(nowPosR, prePosR, False)
-				
-				if difL > 300 or difR > 300:
-					difL = difR
-				
-				# Error/diferencia entre la salida de los encoders de esta iteracion
-				dif = difR - difL
+				# Se calcula la diferenca de velocidades de los encoders
+				dif = wR - wL
 								
 				# Suma de los errores(dif) anteriores
 				psum = psum + dif
@@ -705,34 +675,103 @@ class Robot(object):
 				delta = dif * kp + (dif - pdif / dt) * kd + ki * psum
 				
 				# Se modifica la salida de los motores				
-				motores.setMotorL(pwm + delta)  	# *((-1)**(not forward))
+				motores.setMotorL(pwm + delta)  	
 				motores.setMotorR(pwm)
 
 				# La Diferencia Actual 'dif' pasa a ser la diferencia previa 'pdif' #
 				pdif = dif
 
-				# Se calcula la velocidad angular de cada rueda del robot y con esos valores se calcula la velocidad lineal del robot#
-				wr = pi * difR / (dt * 180) # Convertimos los ticks/s en rad/segfundos 3600 ticks = 2pi
-				wl = pi * difL / (dt * 180)
+				# Se calcula la Velocidad lineal del robot
 				v = r * (wr + wl) / 2 						# Velocidad lineal del robot en cm/s
 				
 				# Integramos para hallar la distancia recorrida
 				distance = v * dt + distance
 				
-				# Actualizamos la posicion de las ruedas
-				prePosR = nowPosR
-				prePosL = nowPosL
 			
 				# El tiempo previo 'timepast' pasa a ser el tiempo actual 'timenow'
-				timepast = timenow
+				timepast = time()
 				
-				promL += difL
-				promR += difR
-				
-				# PRINT PAR HACER TEST
-				print( "difR: " +  str(difR) + ". difL: " + str(difL) + ". Dif: " + str(dif) + ". promL: " + str(promL) + ". promR: " + str(promR))
-				
+			
+		motores.stop()
+	
+	
+	def rotateClockwisePID(self, pwm, degF = 0):      
+		"""
+		Hace girar al robot cierto numero de grados respecto a su eje central
+		
+		ARGUMENTOS:
+		pwm  : Velocidad.
+		degF : Indica la los grados que se desean que el robot gire
 
+		"""
+		
+		# Parametros del PID
+
+		kp = 2		    # Constante Proporcional
+		ki = 0.01	  	# Constante Integral
+		kd = 0 	        # Constante Diferencial
+
+		
+		# Variables de tiempo
+		dt = 0        	# Diferencial de tiempo. Es el tiempo que espera el sistema para aplicar
+						
+		epsilon  = 0.06   # 0.001 muy bajo buen valor 0.06
+		timepast = time() # No se puede inicializar en 0 si no calcula mla la distncia 
+		
+		# Inizialicacion de las variables del PID
+		pdif = 0    # Diferencia/error previo
+		psum = 0    # Suma de las diferencias/errores previas
+		
+	
+		
+		# angulo barrido
+		degT = 0
+
+		# Radio de las ruedas del robot
+		r = 2.8 # cm
+		
+		#Longitud de la rueda al centro de girop dl robot
+		rr = 10  # cm
+				
+		while not degT or degT < degF:
+									
+			# Mide el tiempo actual
+			timenow  = time()	
+			# Calcula diferencia entre el tiempo actual y el pasado
+			dt = timenow - timepast
+			
+			if dt >= epsilon:		
+			
+				wR = encoderR.getAngularVelocity()
+				wL = encoderL.getAngularVelocity()
+				
+				# Se calcula la diferenca de velocidades de los encoders
+				dif = abs(wR) - abs(wL)
+								
+				# Suma de los errores(dif) anteriores
+				psum = psum + dif
+
+				# Aplicacion de la funcion de PID
+				delta = dif * kp + (dif - pdif / dt) * kd + ki * psum
+				
+				# Se modifica la salida de los motores				
+				motores.setMotorL(pwm + delta)  	
+				motores.setMotorR(-pwm)
+
+				# La Diferencia Actual 'dif' pasa a ser la diferencia previa 'pdif' #
+				pdif = dif
+
+				# Se calcula la angular del robot
+				w = (wR - wL)/rr
+				
+				# Integramos para hallar la distancia recorrida
+				degT = w * dt + degT
+				
+			
+				# El tiempo previo 'timepast' pasa a ser el tiempo actual 'timenow'
+				timepast = time()
+				
+			
 		motores.stop()
 	
 	
