@@ -68,8 +68,8 @@ def leaveBlock(state, green, level):
 	grua.move(1.5)
 	# Avanzamos hasta conseguir la linea negra
 	robot.movStrUntObj(True, Slow = False, Line = True)
-	# Nos movemos un poco hacia atras para poder alinearnos
-	robot.moveStraight(False, dist = 4, slow = False)
+	# Nos movemos un poco hacia atras para poder alinearnos ----------------------
+	robot.moveStraight(False, dist = 4, slow = False) 
 	# Nos alineamos con la linea negra
 	robot.align(20, True)
 	# Retroceder un poco para volverte a aliniar
@@ -81,18 +81,75 @@ def leaveBlock(state, green, level):
 	grua.move(newLvl)
 	# Apagamos el iman
 	magnet.off()
-	# Retroceder hasta (mas o menos) el estado inicial
+	# Retroceder hasta (mas o menos) el estado inicial ------------------
 	robot.moveStraight(False, dist = 30, slow = False)
 	# Bajo la grua
 	newLvl = -(state.loadedBlocks[int(green)]%3)
-	pdb.set_trace()
+	#pdb.set_trace()
 	grua.move(newLvl)
-	# Giramos alrededor de 90 grados dependiendo del color del bloque que habiamos cargado antes
-	robot.turn(green, 320)
+	# Giramos alrededor de 90 grados dependiendo del color del bloque que habiamos cargado antes ---------------------------------------
+	robot.turn(green, 230)
 	# Actualizamos el estado
 	state.loadedBlocks[int(green)] += 1
 	state.blockColor = -1
 	
+def portToGarden(right, state):
+	# Avanzar hasta la linea negra ------------------------------------
+	robot.movStrUntObj(True, Slow = False, Line = True)
+	# Avanzar un poco para facilitar el giro--------------------------
+	robot.moveStraight(True, dist = 6, slow = False)
+	# Girar hasta conseguir la linea negra  
+	robot.turnUntLine(right) 
+	# Seguir linea hasta conseguir la esquina
+	robot.fllwLineUntObj(30, Corner = True)
+	# Avanzar un poco para facilitar el giro -----------------------
+	robot.moveStraight(True, dist = 4, slow = False) 
+	# Girar hasta conseguir la linea negra 
+	robot.turnUntLine(not right) 
+	# Seguir linea hasta conseguir el bloque
+	robot.fllwLineUntObj(30, BlockL = right, BlockR = not right, dist = 30)
+	# Avanzar un poco para una mejor alineacion con el bloque
+	robot.fllwLineUntObj(30, Time = True, tm = 1.9)
+	# Gira alrdedor de 90 grados ------------------------------------
+	robot.turn(not right, 90)
+	# Retrocede y alineate con la linea negra 
+	robot.align(25, False)	
+
+def gardenToPort(right, state):
+	# Girar hasta conseguir la linea negra
+	robot.turnUntLine(not right)
+	# Seguir la linea hasta conseguir la esquina
+	robot.fllwLineUntObj(30, Corner = True)
+	# Avanzar un poco para facilitar el giro -------------------------
+	robot.moveStraight(True, dist = 4, slow = False)
+	# Girar hasta conseguir la linea negra
+	robot.turnUntLine(right)
+	# Seguir la linea poco tiempo para evitar problemas con la deteccion de la bifurcacion
+	robot.fllwLineUntObj(30, Time = True, tm = 0.8)
+	# Seguir la linea hasta conseguir una bifurcacion
+	robot.fllwLineUntObj(30, Bifur = True)
+	# Seguir la linea hasta conseguir un bloque
+	robot.fllwLineUntObj(30, BlockL = not right, BlockR = right, dist = 25)
+	# Seguir la linea poco tiempo para quedar mas centrado entre los dos barcos
+	robot.fllwLineUntObj(30, Time = True, tm = 1.9)
+	# Gira alrdedor de 90 grados -------------------------------------
+	robot.turn(not right, 90)
+	# Retrocede y alineate con la linea negra 
+	robot.align(34, False)
+	# Avanzar un poco para volverte  a aliniar ------------------------
+	robot.moveStraight(True, dist = 4, slow = False)
+	# Retrocede y alineate con la linea negra 
+	robot.align(25, False)
+
+def nearShip(right, state):
+	# Avanzar hasta los barcos -----------------------------------
+	robot.moveStraight(True, dist = 30, slow = False)
+	# Definimos si el bloque que llevamos es verde y azul
+	green = (state.blockColor == 1)
+	# Si el bloque es azul, avanzamos dependiendo de la cantidad de bloques azul llevados hasta ahora -------------------------------------
+	robot.moveStraight(True, dist = 30*(1 + int((state.loadedBlocks[int(green)])/3)), slow = False)
+	# Giramos alrededor de 90 grados -----------------------------------------------------------
+	robot.turn(green, 230)
 
 def findLtrlBlock(right, state):
 	"""Busca un bloque en alguno de los jardines laterales.
@@ -101,65 +158,22 @@ def findLtrlBlock(right, state):
 	right: True indica que buscara un bloque en el jardin derecho. False indica que lo buscara en el jardin izquierdo.
 	state: Estado.
 	"""
-	
 	# Definimos a que nivel subiremos la grua
 	level = foundLevel(state)
-	# Avanzar hasta la linea negra
-	robot.movStrUntObj(True, Slow = False, Line = True)
-	# Avanzar un poco para facilitar el giro
-	robot.moveStraight(True, dist = 6, slow = False)
-	# Girar hasta conseguir la linea negra
-	robot.turnUntLine(right) 
-	# Seguir linea hasta conseguir la esquina
-	robot.fllwLineUntObj(30, Corner = True)
-	# Avanzar un poco para facilitar el giro
-	robot.moveStraight(True, dist = 4, slow = False)
-	# Girar hasta conseguir la linea negra
-	robot.turnUntLine(not right) 
-	# Seguir linea hasta conseguir el bloque
-	robot.fllwLineUntObj(25, BlockL = right, BlockR = not right, dist = 30)
-	# Avanzar un poco para una mejor alineacion con el bloque
-	robot.fllwLineUntObj(25, Time = True, tm = 2.4)
-	# Gira alrdedor de 90 grados
-	robot.turn(not right, 110)
-	# Retrocede y alineate con la linea negra 
-	robot.align(25, False)
-	# Tomamos el bloque correspondiente
+	
+	# Movernos del Puerto al jardin
+	portToGarden(right, state)
+	# Tomamos el bloque correspondiente y retrocedemos
 	takeBlock(state, level)
-	# Girar hasta conseguir la linea negra
-	robot.turnUntLine(not right)
-	# Seguir la linea hasta conseguir la esquina
-	robot.fllwLineUntObj(25, Corner = True)
-	# Avanzar un poco para facilitar el giro
-	robot.moveStraight(True, dist = 4, slow = False)
-	# Girar hasta conseguir la linea negra
-	robot.turnUntLine(right)
-	# Seguir la linea poco tiempo para evitar problemas con la deteccion de la bifurcacion
-	robot.fllwLineUntObj(25, Time = True, tm = 0.8)
-	# Seguir la linea hasta conseguir una bifurcacion
-	robot.fllwLineUntObj(25, Bifur = True)
-	# Seguir la linea hasta conseguir un bloque
-	robot.fllwLineUntObj(25, BlockL = not right, BlockR = right, dist = 25)
-	# Seguir la linea poco tiempo para quedar mas centrado entre los dos barcos
-	robot.fllwLineUntObj(25, Time = True, tm = 1.9)
-	# Gira alrdedor de 90 grados
-	robot.turn(not right, 110)
-	# Retrocede y alineate con la linea negra 
-	robot.align(27, False)
-	# Avanzar un poco para volverte  a aliniar
-	robot.moveStraight(True, dist = 4, slow = False)
-	# Retrocede y alineate con la linea negra 
-	robot.align(25, False)
-	# Avanzar hasta los barcos
-	robot.moveStraight(True, dist = 30, slow = False)
-	# Definimos si el bloque que llevamos es verde y azul
-	green = (state.blockColor == 1)
-	# Si el bloque es azul, avanzamos dependiendo de la cantidad de bloques azul llevados hasta ahora
-	robot.moveStraight(True, dist = 30*(1 + int((state.loadedBlocks[int(green)])/3)), slow = False)
-	# Giramos alrededor de 90 grados
-	robot.turn(green, 320)
-	# Dejamos el bloque
+	
+	# Movernos del jardin al puerto
+	gardenToPort(right, state)
+	
+	# Acercarse al barco correspondiente
+	nearShip(right, state)
+	# Dejamos el bloque y retroceder
 	leaveBlock(state, green, level)
+	
 	motores.stop()
 
 
@@ -217,12 +231,11 @@ def findCntrlBlock(state):
 
 if __name__ == "__main__":
 	#magnet.off()
-	#grua.move(-0)
 	arduino.getAll()
-	print "############################### VERIFICA QUE LA GRUA NO VA A BAJAR MAS DE LA CUENTA #########################################"
-	print "Si ya verificaste que la grua no bajara mas alla del nivel 0, escribe 'c' y presiona enter. En caso contrario presiona control+c."
+	print ("############################### VERIFICA QUE LA GRUA NO VA A BAJAR MAS DE LA CUENTA #########################################")
+	print ("Si ya verificaste que la grua no bajara mas alla del nivel 0, escribe 'c' y presiona enter. En caso contrario presiona control+c.")
 	pdb.set_trace()
-	grua.move(0)
+	#grua.move(0)
 	
 	for i in range(4):
 		findLtrlBlock(True, state)

@@ -48,5 +48,11 @@ class Estado(object):
 			1 -> Verde
 			2 -> Rojo
 		"""
-
+		
+		self.direcs = [0, 0, 0, 0]
+		"""Indica los puntos cardinales del giroscopio cuando no tiene encendido el iman. [Norte, Este, Sur, Oeste]"""
+		
+		
+		self.direcsI = [0, 0, 0, 0]
+		"""Indica los puntos cardinales del giroscopio cuando tiene encendido el iman. [Norte, Este, Sur, Oeste]"""
 

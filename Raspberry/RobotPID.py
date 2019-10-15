@@ -5,6 +5,10 @@ from ArduinoReader import Arduino
 from StepperMotor import Grua
 from Electroiman import Magnet
 from Encoder import Encoder
+from Estado import Estado
+from Switch import Switch
+
+from pdb import set_trace
 from time import sleep, time
 from multiprocessing import Process
 
@@ -18,105 +22,52 @@ arduino = Arduino()
 grua = Grua(19, 16, 6, 12)
 magnet = Magnet(23)
 ser = serial.Serial('/dev/ttyACM0', 57600)
-encoderR = Encoder()
-encoderL = Encoder() 
+encoderR = Encoder(21)
+encoderL = Encoder(5) 
+suicheD = Switch(9,10) #Suiche izquierdo	
+suicheI = Switch(24,25)	#Suiche Derecho
+pi = 3.141592654 #Valor de pi
 
-class Robot(object):
+
+class PID(object):
 	
 	################################ FUNCIONES BASICAS #################################
-	def angToTime(self, angle, clockwise):		# CHECK
-		"""Funcion que toma un angulo y define cuanto tiempo debe girar el robot para girar dicho angulo.
-
-		ARGUMENTOS:
-		angle: Angulo que se desea girar.
-		clockwise: True indica que el giro es en sentido horario, False indica sentido anti-horario
-		"""
-
-		if clockwise:
-			b0 = -14.9090909091        
-			b1 = 152.272727273
-			
-		else:
-			b0 = -10.4545454545        
-			b1 = 133.727272727
+	def difAngle(self, ang1, ang2):
+		"""Obtiene la distancia entre dos angulos.
 		
-		return (angle - b0)/b1
-
-				
-	def distToTime(self, dist, foward):			# CHECK
-		"""Funcion que toma una distancia y define cuanto tiempo debe moverse el robot para desplazarse dicha distancia.
-
 		ARGUMENTOS:
-		dist: Distancia que se desea mover.
-		foward: True indica que se movera hacia adelante, False indica hacia atras.
+		ang1: Primer Angulo.
+		ang2: Segundo Angulo.
 		"""
-
-		if foward:
-			b0 = -2.57272727273        
-			b1 = 28.6818181818
-
-		else:
-			b0 = -3.09090909091        
-			b1 = 27.5181818182
-
+		
+		# Si ambos tienen el mismo signo, entonces la distancia entre ambos angulos sera su diferencia.
+		if (ang1 > 0 and ang2 > 0) or (ang1 < 0 and ang2 < 0):
+			return abs(ang1 - ang2)
 			
-		return (dist - b0)/b1
+		# Si ambos tienen distinto signo, entonces la distancia entre ambos angulos sera la menor entre la suma de 
+		#sus diferencias con 0  y  360 menos la distancia anterior.
+		else:
+			return min(abs(ang1) + abs(ang2), 360 - abs(ang1) - abs(ang2))
+			 
+		
 	
-		
-	def difGrados(self, now, prev, foward):		# CHECK
-		"""Obtiene la diferencia entre una posicion pasada y una actual dada en grados.
-		
-		ARGUMENTOS:
-		prev: Posicion previa.
-		now: Posicion actual. 
-		foward: True si la rueda gira hacia adelante; False en caso contrario.
-		"""
-		if now < prev and foward:
-			now += 360
-		elif prev < now and not foward:
-			prev += 360
-		
-		dif = abs(prev - now)
-			
-		return dif
+	def angDifClockWise(self, ang_o, ang_f):		# CHECK
 
+		if ang_f <0:
+			r = ang_o - ang_f
+			if r > 0:
+				return r
+			else:
+				return 360 - r 
+		elif ang_f > 0:
+			r = ang_o - ang_f
+			if r > 0:
+				return  r 
+			else:
+				return 360 + r 
 			
-	def moveStraight(self, foward, dist = 0, slow = True):	
-		"""Mueve al robot en linea recta.
+
 		
-		ARGUMENTOS:
-		pwm: Velocidad.
-		foward: True si el robot avanza hacia adelante; False en caso contrario.
-		dist: Indica la distancia que se va a mover el robot; 0 indica distancia indeterminada (Valor predeterminado: 0).
-		slow: True indica que se movera lentamente, False indica rapidamente (Valor predetermiando: True). """
-		
-		# Definimos la velocidad de los motores.
-		if slow:
-			velLF, velRF, velLB, velRB = 14, 16, -25.05, -20
-		else:
-			velLF, velRF, velLB, velRB = 60, 45, -40.31, -38.55
-			
-		if foward:
-			motores.setMotorL(velLF)  	# 	40.00	|	20.00
-			motores.setMotorR(velRF)	# 	45.00	| 	21.00
-			
-			t = self.distToTime(dist - 0.5, foward)
-			
-		else:
-			motores.setMotorL(velLB)	#	-40.31	|	-25.05
-			motores.setMotorR(velRB)	#	-38.55	|	-20
-			
-			t = self.distToTime(dist, foward)
-
-			
-		while not bool(dist):
-			pass
-			
-		sleep(t)
-
-		motores.stop()
-
-
 	def stop(self):								# CHECK
 		"""Detiene y apaga todos los componentes del robot."""
 		
@@ -124,7 +75,8 @@ class Robot(object):
 		# grua.nivel(0)
 		# grua.setStep(0, 0, 0, 0)
 		motores.stop()
-			
+
+		
 		
 	def followLine(self, pwm, dummy = False):	# CHECK
 		"""Hace al robot seguir una linea negra.
@@ -184,6 +136,7 @@ class Robot(object):
 				# El tiempo actual 'timepast' pasa a ser el tiempo previo 'timenow'
 				timepast = timenow
 
+
 			
 	def detect(self, corner = False, blockL = False, blockR = False, blockC= False, dist = 0, line = False):	# CHECK
 		"""Procedimiento que se mantiene activo mientras no se detecte el objeto indicado por argumento.
@@ -237,6 +190,7 @@ class Robot(object):
 			while all((sensor<negro) for sensor in sensors):
 				sensors = arduino.getQTR()
 
+		
 			
 	def turn(self, clockwise, angle):			# CHECK
 		"""Hace girar al robot.
@@ -252,7 +206,6 @@ class Robot(object):
 		t = self.angToTime(angle, clockwise)
 		sleep(t)
 		motores.stop()
-
 
 
 
@@ -281,6 +234,7 @@ class Robot(object):
 		p1.terminate()
 
 		motores.stop()
+
 
 
 	def fllwLineUntObj(self, pwm, Corner = False, BlockL = False, BlockR = False, dist = 0, Bifur = False, Time = False, tm = 0):		# CHECK
@@ -378,6 +332,7 @@ class Robot(object):
 				
 		motores.stop()
 				
+
 			
 	def fllwLineUntCorner(self, pwm):				# CHECK
 		"""Hace al robot seguir una linea negra hasta detectar una esquina (todos los sensores blancos)
@@ -441,6 +396,7 @@ class Robot(object):
 		motores.stop()
 
 
+
 	def turnUntLine(self, clockwise):				# CHECK		
 		"""El robot gira hasta conseguir una linea.
 
@@ -458,6 +414,7 @@ class Robot(object):
 	
 		p1.terminate()
 		motores.stop()
+
 
 
 	def align(self, pwm, foward):					# CHECK
@@ -512,189 +469,175 @@ class Robot(object):
 		motores.stop()
 
 
-
-
-	################################ TESTING #####################################
 	
-	def TprobEncd(self, pwm):
-		timepast = time()
-		dt = 0
-		epsilon = 0.001
-		# Posicion previa de las ruedas 
-		prePosL = arduino.getEncoderL()
-		prePosR = arduino.getEncoderR()
-		# Posicion actual de las ruedas
-		nowPosR = prePosR
-		nowPosL = prePosL
-			
-		# Para tener un contro del promedio de ticks que giraron ambas ruedas
-		promL = 0
-		promR = 0
-		n = 0
-
-		motores.setMotorL(pwm)  	
-		motores.setMotorR(pwm)
-
-		while True:
-			dt = time() - timepast
-			if  dt > epsilon:
-				# Se lee el valor de los encoders
-				ard = arduino.getAll()
-				nowPosL = ard[12]
-				nowPosR = ard[13]
-				
-				# Diferencia entre los posiciones previas y actuales de los motores
-				difL = self.difGrados(nowPosL, prePosL, True)
-				difR = self.difGrados(nowPosR, prePosR, False)
-				
-				print difL, " ", difR
-				
-				prePosR = nowPosR
-				prePosL = nowPosL
-				
-				promL += difL
-				promR += difR
-				n += 1
-				timepast = time() 
-			
-		robot.stop()
-	
-
-	def Talign(self, pwm, foward):
-		"""El robot se mueve en lineaa recta y se alinea con una linea negra.
-
-		ARGUMENTOS:
-		pwm: Velocidad del giro.
-		foward: Variable booleana que indica si va hacia adelante.
+	def adjtNearAngle(self, pwm, ang_ob):      
+		"""Hace que el robot se ajuste a un angulo cercano dado.
+		
+		ARGUMENTOS
+		pwm: Potencia de los motores.
+		ang_obj: Es mi angulo objetivo.
 		"""
-		neg = -(-1)**int(foward)
-		n = 20
-		while n:
-			sensors = arduino.getQTR()
-			n -= 1
-		sensors = arduino.getQTR()
 		
-		negro = False
-
-		# El robot se mueve en linea recta hasta conseguir una linea
-		while not negro:
-			negro = any(sensor > 1000 for sensor in sensors)
-			sensors = arduino.getQTR()
-			motores.run(neg*pwm)
-		
-		# Verificamos los sensores QTR
-		sensors = arduino.getQTR()
-		motores.stop()
-
-		# Verificamos si el primer sensor QTR que detecto la linea fue el izquierdo (True) o el derecho (False)
-		izq = sum(sensors[i] for i in range(3)) < sum(sensors[i] for i in range(5, 8))
-		
-
-		# El valor de la variable es 1 si foward es True, o -1 en caso contrario
-		negro = 1500
-		
-		if foward:
-			kp = 1.25
-		else:
-			kp = 2.5
-
-
-		if izq:
-			while sensors[0] < negro:
-				motores.setMotorR(neg*15)
-				motores.setMotorL(-neg*15 / kp)
-				sensors = arduino.getQTR()
-		else:
-			while sensors[7] < negro:
-				motores.setMotorL(neg*15)
-				motores.setMotorR(-neg*15 / kp)
-				sensors = arduino.getQTR()
-				
-		if not all(sensor > 100 for sensor in sensors):
-			motores.run(-10)
-			sleep(1)
-			self.foward(pwm, True)
-				
-		motores.stop()
-	
-
-	def forwardPID(self, pwm, dist = 0):     
-	"""Mueve al robot en linea recta hacia adelante #Palantekomandat3.
-		
-		ARGUMENTOS:
-		pwm: Velocidad.
-		dist: Indica la distancia que se va a mover el robot en mm; 0 indica distancia indeterminada (Valor predeterminado: 0)."""
+		print("Me estoy acercando...")	#BORRAR
 		
 		
-		# Parametros del PID
-
-		kp = 2		    # Constante Proporcional
-		ki = 0.01	  	# Constante Integral
-		kd = 0 	        # Constante Diferencial
+		alpha_o = arduino.gyro()
+		timepast = time()
+		dt = 0        	# Diferencial de tiempo. Es el tiempo que espera el sistema para aplicar				
+		epsilon  = 0.01   # 0.001 muy bajo buen valor 0.06
+		t = None
 
 		
-		# Variables de tiempo
-		dt = 0        	# Diferencial de tiempo. Es el tiempo que espera el sistema para aplicar
-						
-		epsilon = 0.06  #0.001 muy bajo buen valor 0.06
-		timepast = time() #No se puede inicializar en 0 si no calcula mla la distncia 
-		
-		# Inizialicacion de las variables del PID
-		pdif = 0    # Diferencia/error previo
-		psum = 0    # Suma de las diferencias/errores previas
-		
-	
-		
-		# Distancia recorrida
-		distance = 0
-
-		# Radio de las ruedas del robot
-		r = 2.8 # cm
-		
-
-				
-		while not dist or distance < dist:
-									
+		while alpha_o > ang_ob + 3 or alpha_o < ang_ob - 3 :
 			# Mide el tiempo actual
 			timenow  = time()	
 			# Calcula diferencia entre el tiempo actual y el pasado
 			dt = timenow - timepast
-			
-			if dt >= epsilon:		
-			
-				wR = encoderR.getAngularVelocity()
-				wL = encoderL.getAngularVelocity()
+			n = 1
+			if dt >= epsilon:
 				
-				# Se calcula la diferenca de velocidades de los encoders
-				dif = wR - wL
-								
-				# Suma de los errores(dif) anteriores
-				psum = psum + dif
-
-				# Aplicacion de la funcion de PID
-				delta = dif * kp + (dif - pdif / dt) * kd + ki * psum
+				alpha_o =  arduino.gyro()
+					
+		
 				
-				# Se modifica la salida de los motores				
-				motores.setMotorL(pwm + delta)  	
-				motores.setMotorR(pwm)
-
-				# La Diferencia Actual 'dif' pasa a ser la diferencia previa 'pdif' #
-				pdif = dif
-
-				# Se calcula la Velocidad lineal del robot
-				v = r * (wr + wl) / 2 						# Velocidad lineal del robot en cm/s
+				d = ang_ob - alpha_o
+				if d > 0:
+					motores.setMotorL(+pwm )  	
+					motores.setMotorR(-pwm)
+					if t=="cklock":
+						n = n+1
+						pwm = pwm-n
+					
+					t ="ccklock"
 				
-				# Integramos para hallar la distancia recorrida
-				distance = v * dt + distance
+				else:
+					motores.setMotorL(-pwm )  	
+					motores.setMotorR(+pwm)
+					if t=="ccklock":
+						n = n+1
+						pwm = pwm-n
+					t =" cklock"
+					
+					
 				
-			
 				# El tiempo previo 'timepast' pasa a ser el tiempo actual 'timenow'
-				timepast = time()
-				
-			
+				timepast = timenow
+		motores.stop()		
+		sleep(0.1)
+		alpha_o =  arduino.gyro()
+		if	not(alpha_o > ang_ob + 3 or alpha_o < ang_ob - 3 ):
+			self.adjtNearAngle(pwm, ang_ob)
 		motores.stop()
 	
 	
+		
+	def adjtAngle(self, pwm, clockwise, state, magnet):      
+		"""Hace que el robot gire hacia uno de los 4 puntos cardinales vecinos.
+		
+		ARGUMENTOS:
+		pwm: Potencia de los motores.
+		clockwise: Sentido del giro.
+		state: Estado del robot.
+		magnet: Indica si el iman esta prendido o no
+		"""
+		
+		# Limpiamos el buffer
+		ser.reset_input_buffer()
+		
+		# Guardamos la distancia entre la posicion actual y los 4 puntos cardinales.
+		# Verificamos cual es la menor de las 4 distancias anteriores, la menor sera la posicion actual
+		
+		neg = -(-1)**int(clockwise)
+		direc = arduino.gyro()
+
+
+		if magnet:
+			difDir = self.difAngle(direc, state.direcsI[0])	# Esta variable indica cual es el punto cardinal mas cercana.
+		else:
+			difDir = self.difAngle(direc, state.direcs[0])	# Esta variable indica cual es el punto cardinal mas cercana.
+			
+			
+		ind = 0		# Indice que indica el punto cardinal mas cercano.
+		for i in range(1, 4):
+			
+			if magnet:
+				angle = self.difAngle(direc, state.direcsI[i])
+			else:
+				angle = self.difAngle(direc, state.direcs[i])
+				
+				
+			if angle < difDir:
+				difDir = angle
+				ind = i
+			
+		# BORRAR
+		if ind == 0:
+			print("ESTOY EN EL NORTE")
+		elif ind == 1:
+			print("ESTOY EN EL ESTE")
+		elif ind == 2:
+			print("ESTOY EN EL SUR")
+		elif ind == 3:
+			print("ESTOY EN EL OESTE")
+		########
+		
+		if magnet:
+			targetDir = state.direcsI[(ind + neg)%4]
+		else:
+			targetDir = state.direcs[(ind + neg)%4]
+			
+			
+		pos = arduino.gyro()
+		
+		
+		# Definimos nuesta condicion para mantener al robot dentro del while
+		if (targetDir < -170):
+			dif = self.difAngle(-180, targetDir)
+			cond = (pos > targetDir + 10) and (pos < 170 + dif) 
+		elif (targetDir > 170):
+			dif = self.difAngle(180, targetDir)
+			cond = (pos > -170 - dif) and (pos < targetDir - 10) 
+		else:
+			cond = (pos > targetDir + 10) or (pos < targetDir - 10)
+			
+			
+		timepast = time()
+		dt = 0        	# Diferencial de tiempo. Es el tiempo que espera el sistema para aplicar				
+		epsilon  = 0.01   # 0.001 muy bajo buen valor 0.06
+		
+		while cond:
+			# Mide el tiempo actual
+			timenow  = time()	
+			# Calcula diferencia entre el tiempo actual y el pasado.
+			dt = timenow - timepast
+			
+			if dt >= epsilon:
+				pos =  arduino.gyro()
+				
+				motores.setMotorL(neg*pwm )  	
+				motores.setMotorR(-neg*pwm)				
+				
+				# El tiempo previo 'timepast' pasa a ser el tiempo actual 'timenow'.
+				timepast = timenow
+				
+				
+				if (targetDir < -170):
+					cond = (pos > targetDir + 10) and (pos < 170 + dif) 
+				elif (targetDir > 170):
+					cond = (pos > -170 - dif) and (pos < targetDir - 10) 
+				else:
+					cond = (pos > targetDir + 10) or (pos < targetDir - 10)
+					
+					
+				
+		# Despues de que nos acercamos lo suficiente a la posicion, usamos la funcion para acercarse a un angulo cercano.
+		self.adjtNearAngle(pwm, targetDir)
+		
+		
+		print("LLEGUE!") #BORRAR	
+		
+		
+							
 	def rotateClockwisePID(self, pwm, degF = 0):      
 		"""
 		Hace girar al robot cierto numero de grados respecto a su eje central
@@ -704,50 +647,114 @@ class Robot(object):
 		degF : Indica la los grados que se desean que el robot gire
 
 		"""
-		
+		if degF > 360:
+			return "chupalo lorenzo"
 		# Parametros del PID
 
-		kp = 2		    # Constante Proporcional
-		ki = 0.01	  	# Constante Integral
+		kp = 0	    # Constante Proporcional
+		ki = 0	  	# Constante Integral
 		kd = 0 	        # Constante Diferencial
 
 		
 		# Variables de tiempo
 		dt = 0        	# Diferencial de tiempo. Es el tiempo que espera el sistema para aplicar
 						
-		epsilon  = 0.06   # 0.001 muy bajo buen valor 0.06
+		epsilon  = 0.01   # 0.001 muy bajo buen valor 0.06
 		timepast = time() # No se puede inicializar en 0 si no calcula mla la distncia 
 		
 		# Inizialicacion de las variables del PID
 		pdif = 0    # Diferencia/error previo
 		psum = 0    # Suma de las diferencias/errores previas
 		
-	
 		
-		# angulo barrido
-		degT = 0
+		
 
 		# Radio de las ruedas del robot
 		r = 2.8 # cm
 		
 		#Longitud de la rueda al centro de girop dl robot
-		rr = 10  # cm
-				
-		while not degT or degT < degF:
-									
+		rr =  7.9 # cm
+		alpha_o = arduino.gyro()
+		"""
+		print(alpha_o)
+		
+		alpha_f = alpha_o - degF
+		
+		if alpha_f < -180:
+			alpha_f += 360
+		"""
+		d = 0
+		
+		while d < degF or d > degF  + 10  :
 			# Mide el tiempo actual
 			timenow  = time()	
 			# Calcula diferencia entre el tiempo actual y el pasado
 			dt = timenow - timepast
 			
-			if dt >= epsilon:		
-			
-				wR = encoderR.getAngularVelocity()
-				wL = encoderL.getAngularVelocity()
+			if dt >= epsilon:
+
+				alpha_f =  arduino.gyro()		
 				
-				# Se calcula la diferenca de velocidades de los encoders
-				dif = abs(wR) - abs(wL)
-								
+				motores.setMotorL(-pwm )  	
+				motores.setMotorR(+pwm)
+				
+				d = self.angDifClockWise(alpha_o,alpha_f)
+				print(str(d)+"  "+str(alpha_f)+ "  "+str(alpha_o))
+				# El tiempo previo 'timepast' pasa a ser el tiempo actual 'timenow'
+				timepast = timenow
+				
+			
+		motores.stop()
+		
+
+		
+	def forwardPIDGyro(self, pwm):     
+	
+		# Parametros del PID
+
+		kp = 0.1		    # Constante Proporcional
+		ki = 0	  	    # Constante Integral
+		kd = 0 #0.00375       # Constante Diferencial
+
+		
+		# Variables de tiempo
+		dt = 0        	# Diferencial de tiempo. Es el tiempo que espera el sistema para aplicar
+						
+		epsilon = 0.01  #0.001 muy bajo buen valor 0.06
+		timepast = time() #No se puede inicializar en 0 si no calcula mla la distncia 
+		
+		# Inizialicacion de las variables del PID
+		pdif = 0    # Diferencia/error previo
+		psum = 0    # Suma de las diferencias/errores previas
+	
+		
+		# Distancia recorrida
+		distance = 0
+
+		# Radio de las ruedas del robot
+		r = 2.8 # cm
+		
+		alpha_o = arduino.gyro()
+		
+		sensors = arduino.getQTR()
+		negro = 1800 
+		
+		while all((sensor<negro) for sensor in sensors):
+									
+			
+			# Mide el tiempo actual
+			timenow  = time()	
+			sensors = arduino.getQTR()
+			alpha_f = arduino.gyro()
+			# Calcula diferencia entre el tiempo actual y el pasado
+			dt = timenow - timepast
+			
+				
+			
+			if dt >= epsilon:		
+				
+				dif = alpha_f - alpha_o
+					
 				# Suma de los errores(dif) anteriores
 				psum = psum + dif
 
@@ -756,35 +763,179 @@ class Robot(object):
 				
 				# Se modifica la salida de los motores				
 				motores.setMotorL(pwm + delta)  	
-				motores.setMotorR(-pwm)
-
+				motores.setMotorR(pwm)
+			
 				# La Diferencia Actual 'dif' pasa a ser la diferencia previa 'pdif' #
 				pdif = dif
 
-				# Se calcula la angular del robot
-				w = (wR - wL)/rr
-				
-				# Integramos para hallar la distancia recorrida
-				degT = w * dt + degT
-				
-			
 				# El tiempo previo 'timepast' pasa a ser el tiempo actual 'timenow'
 				timepast = time()
+
+				alpha_o  = alpha_f
 				
-			
+				
 		motores.stop()
-	
+		
+		
+		
+	def getPoles(self):     
+		
+		print("iniciando Calibracion")
+		
+		print("Coloque el robot mirando hacia el norte")
+		print("N")
+		input("[Presione enter para continuar]")
+		k = 1
+		while k :
+			ser.reset_input_buffer()
+			print("Sampleando...")
+			for i in range(0, 10):
+				print(arduino.gyro())
+			k = input("[Presione enter para continuar o [1] y enter para volver a samplear]")
+			if k == None:
+				k = 0
+		norte = arduino.gyro()
+
+		print("Coloque el robot mirando hacia el este")
+		print("E")
+		input("[Presione enter para continuar]")
+		k = 1
+		while k :
+			ser.reset_input_buffer()
+			print("Sampleando...")
+			for i in range(0, 10):
+				print(arduino.gyro())
+			k = input("[Presione enter para continuar o [1] y enter para volver a samplear]")
+			if k == None:
+				k = 0
+		este = arduino.gyro()
+
+		print("Coloque el robot mirando hacia el sur")
+		print("S")
+		input("[Presione enter para continuar]")
+		k = 1
+		while k :
+			ser.reset_input_buffer()
+			print("Sampleando...")
+			for i in range(0, 10):
+				print(arduino.gyro())
+			k = input("[Presione enter para continuar o [1] y enter para volver a samplear]")
+			if k == None:
+				k = 0
+		sur = arduino.gyro()
+
+		print("Coloque el robot mirando hacia el oeste")
+		print("O")
+		input("[Presione enter para continuar]")
+		k = 1
+		while k :
+			ser.reset_input_buffer()
+			print("Sampleando...")
+			for i in range(0, 10):
+				print(arduino.gyro())
+			k = input("[Presione enter para continuar o [1] y enter para volver a samplear]")
+			if k == None:
+				k = 0
+		oeste = arduino.gyro()
+		
+		
+		print([norte, este, sur, oeste])
+		
+		
+		print("El electroiman sera encendido a continuacion coloquele un bloque de metal")
+		input("[Presione enter para continuar]")
+		magnet.on()
+		print("Coloque el robot mirando hacia el norte")
+		print("N")
+		input("[Presione enter para continuar]")
+		k = 1
+		while k :
+			ser.reset_input_buffer()
+			print("Sampleando...")
+			for i in range(0, 10):
+				print(arduino.gyro())
+			k = input("[Presione enter para continuar o [1] y enter para volver a samplear]")
+			if k == None:
+				k = 0
+		norte_m = arduino.gyro()
+
+		print("Coloque el robot mirando hacia el este")
+		print("E")
+		input("[Presione enter para continuar]")
+		k = 1
+		while k :
+			ser.reset_input_buffer()
+			print("Sampleando...")
+			for i in range(0, 10):
+				print(arduino.gyro())
+			k = input("[Presione enter para continuar o [1] y enter para volver a samplear]")
+			if k == None:
+				k = 0
+		este_m = arduino.gyro()
+
+		print("Coloque el robot mirando hacia el sur")
+		print("S")
+		input("[Presione enter para continuar]")
+		k = 1
+		while k :
+			ser.reset_input_buffer()
+			print("Sampleando...")
+			for i in range(0, 10):
+				print(arduino.gyro())
+			k = input("[Presione enter para continuar o [1] y enter para volver a samplear]")
+			if k == None:
+				k = 0
+		sur_m = arduino.gyro()
+
+		print("Coloque el robot mirando hacia el oeste")
+		print("O")
+		input("[Presione enter para continuar]")
+		k = 1
+		while k :
+			ser.reset_input_buffer()
+			print("Sampleando...")
+			for i in range(0, 10):
+				print(arduino.gyro())
+			k = input("[Presione enter para continuar o [1] y enter para volver a samplear]")
+			if k == None:
+				k = 0
+		oeste_m = arduino.gyro()
+		
+		
+		print("El electroimn sera apado a continuacion retirele el bloque de metal")
+		input("[Presione enter para continuar]")
+		magnet.off()
+		
+		return [norte, este, sur, oeste], [norte_m, este_m, sur_m, oeste_m ] 	
+			
 	
 	
 if __name__ == "__main__":
-	robot = Robot()
+	# NO BORRAR NI COMENTAR
+	robot = Robot(); state = Estado()
+	##########
+	
+	state.direcs, state.direcsI = robot.getPoles()
 	
 	while True:
-		print arduino.getAll()
+		
+		
+		clock = bool(int(input("Girara a la derecha? [1 | 0]: ")))
+		magnet = bool(int(input("Encendera el electroiman? [1 | 0]: ")))
+		
+		if magnet:
+			magnet.on()
+			
+		robot.adjtAngle(0, clock, state, magnet)
+		
+		magnet.off()
 	
-	magnet.on()
-	grua.stepper(2000, 0.002)
-	sleep(4)
-	grua.stepper(-2000, 0.002)
-	magnet.off()
+		
+	
+	# NO BORRAR NI COMENTAR
+	robot.stop()
+	##########
+	
+	
+
 
