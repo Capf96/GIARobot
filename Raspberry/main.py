@@ -11,12 +11,12 @@ robot = Robot()
 motores = Motors(20,26) # Pines GPIO27 y GPIO18
 arduino = Arduino()
 state = Estado()
-grua = Grua(19, 16, 06, 12)
+grua = Grua(19, 16, 18, 17)
 magnet = Magnet(23)
 
 
 magnet.on()
-grua.stepper(3000, 0.003)
+grua.stepper(100, 0.003)
 sleep(3)
 magnet.off()
 

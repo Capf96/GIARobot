@@ -1,20 +1,30 @@
 """Aqui se encuentran las funciones que permiten al robot realizar sus principales tareas."""
-import pdb; 
 
-from time import sleep, time
-from MotorControl import Motors
-from Estado import Estado
-from Robot import Robot
-from Electroiman import Magnet
 from ArduinoReader import Arduino
+from MotorControl import Motors
 from StepperMotor import Grua
+from Electroiman import Magnet
+from Encoder import Encoder
+from Estado import Estado
+from Switch import Switch
+from Robot import Robot
+
+from multiprocessing import Process
+from time import sleep, time
+from pdb import set_trace
+
+import pigpio
+import serial
+
+#Componentes del Robot
+suicheD = Switch(9,10) #Suiche izquierdo	
+suicheI = Switch(24,25)	#Suiche Derecho
+motores = Motors(26,20)	# Pines GPIO20 y GPIO26
+grua = Grua(19, 16, 6, 12)
+magnet = Magnet(23,22)
 
 robot = Robot()
-motores = Motors(26,20)	# Pines GPIO20 y GPIO26
-magnet = Magnet(23)
-state = Estado()
 arduino = Arduino()
-grua = Grua(19, 16, 6, 12)
 
 def foundLevel(state):
 	"""Funcion que indica cuanto debe subir la grua dependiendo de su estado.
@@ -39,9 +49,9 @@ def takeBlock(state, level):
 	"""
 	
 	# Nos acercamos lentamente al bloque
-	robot.movStrUntObj(True, Slow = True, BlockC = True, dist = 2)
-	# Nos acercamos nuevamente lentamente al bloque para asegurarnos
-	robot.movStrUntObj(True, Slow = True, BlockC = True, dist = 2)
+	robot.movStrUntBlock(15)
+
+	"""
 	# Subimos la grua
 	grua.move(level)
 	# Prendemos el electroiman
@@ -49,8 +59,12 @@ def takeBlock(state, level):
 	# Nos movemos un poco hacia adelante
 	robot.moveStraight(True, dist = 7, slow = True)
 	grua.move(1)
+	"""
+	
 	# Retrocedo un poco para bajar la grua
-	robot.moveStraight(False, dist = 25, slow = True)
+	motores.run(-17)
+	sleep(0.8)
+	motores.stop()
 	# Actualizamos el estado
 	#state.blockColor = robot.detectColor()
 	state.blockColor = 0
@@ -93,53 +107,52 @@ def leaveBlock(state, green, level):
 	state.loadedBlocks[int(green)] += 1
 	state.blockColor = -1
 	
+	
 def portToGarden(right, state):
 	# Avanzar hasta la linea negra ------------------------------------
-	robot.movStrUntObj(True, Slow = False, Line = True)
+	robot.moveStrUntLine(25)
 	# Avanzar un poco para facilitar el giro--------------------------
-	robot.moveStraight(True, dist = 6, slow = False)
+	robot.movStrUntTime(25, 0.4)
 	# Girar hasta conseguir la linea negra  
 	robot.turnUntLine(right) 
 	# Seguir linea hasta conseguir la esquina
 	robot.fllwLineUntObj(30, Corner = True)
 	# Avanzar un poco para facilitar el giro -----------------------
-	robot.moveStraight(True, dist = 4, slow = False) 
+	robot.movStrUntTime(25, 0.9)
 	# Girar hasta conseguir la linea negra 
 	robot.turnUntLine(not right) 
 	# Seguir linea hasta conseguir el bloque
-	robot.fllwLineUntObj(30, BlockL = right, BlockR = not right, dist = 30)
-	# Avanzar un poco para una mejor alineacion con el bloque
-	robot.fllwLineUntObj(30, Time = True, tm = 1.9)
+	robot.fllwLineUntObj(25, BlockL = right, BlockR = not right, dist = 30)
+	# Seguir la linea un poco
+	robot.fllwLineUntObj(25, Time = True, tm = 0.5)
+	# Seguir linea hasta no conseguir el bloque
+	robot.fllwLineUntObj(20, BlockL = right, BlockR = not right, No = True, dist = 30)
 	# Gira alrdedor de 90 grados ------------------------------------
-	robot.turn(not right, 90)
+	robot.adjtAngle(17, not right, state, False)
 	# Retrocede y alineate con la linea negra 
-	robot.align(25, False)	
+	#robot.align(25, False)	
+
 
 def gardenToPort(right, state):
 	# Girar hasta conseguir la linea negra
 	robot.turnUntLine(not right)
 	# Seguir la linea hasta conseguir la esquina
 	robot.fllwLineUntObj(30, Corner = True)
-	# Avanzar un poco para facilitar el giro -------------------------
-	robot.moveStraight(True, dist = 4, slow = False)
+	# Avanzar un poco para facilitar el giro -----------------------
+	robot.movStrUntTime(25, 0.9)
 	# Girar hasta conseguir la linea negra
 	robot.turnUntLine(right)
 	# Seguir la linea poco tiempo para evitar problemas con la deteccion de la bifurcacion
 	robot.fllwLineUntObj(30, Time = True, tm = 0.8)
 	# Seguir la linea hasta conseguir una bifurcacion
 	robot.fllwLineUntObj(30, Bifur = True)
-	# Seguir la linea hasta conseguir un bloque
-	robot.fllwLineUntObj(30, BlockL = not right, BlockR = right, dist = 25)
-	# Seguir la linea poco tiempo para quedar mas centrado entre los dos barcos
-	robot.fllwLineUntObj(30, Time = True, tm = 1.9)
-	# Gira alrdedor de 90 grados -------------------------------------
-	robot.turn(not right, 90)
-	# Retrocede y alineate con la linea negra 
-	robot.align(34, False)
-	# Avanzar un poco para volverte  a aliniar ------------------------
-	robot.moveStraight(True, dist = 4, slow = False)
-	# Retrocede y alineate con la linea negra 
-	robot.align(25, False)
+	# Seguir la linea poco tiempo para evitar problemas con la deteccion de la bifurcacion
+	robot.fllwLineUntObj(30, Time = True, tm = 0.8)
+	# Seguir la linea hasta conseguir una bifurcacion
+	robot.fllwLineUntObj(30, Bifur = True)
+	# Gira alrdedor de 90 grados ------------------------------------
+	robot.adjtAngle(17, not right, state, False)
+
 
 def nearShip(right, state):
 	# Avanzar hasta los barcos -----------------------------------
@@ -150,6 +163,7 @@ def nearShip(right, state):
 	robot.moveStraight(True, dist = 30*(1 + int((state.loadedBlocks[int(green)])/3)), slow = False)
 	# Giramos alrededor de 90 grados -----------------------------------------------------------
 	robot.turn(green, 230)
+
 
 def findLtrlBlock(right, state):
 	"""Busca un bloque en alguno de los jardines laterales.
@@ -229,15 +243,38 @@ def findCntrlBlock(state):
 	motores.stop()
 
 
+
+
 if __name__ == "__main__":
-	#magnet.off()
-	arduino.getAll()
+	# NO BORRAR NI COMENTAR 
+	magnet.off(); arduino.getAll(); state = Estado()
 	print ("############################### VERIFICA QUE LA GRUA NO VA A BAJAR MAS DE LA CUENTA #########################################")
 	print ("Si ya verificaste que la grua no bajara mas alla del nivel 0, escribe 'c' y presiona enter. En caso contrario presiona control+c.")
-	pdb.set_trace()
-	#grua.move(0)
+	set_trace()
+	grua.move(0)
+	########################
+
+	magnet.on()
+	while True:
+		r = float(input("Indica R: "))		# 17.5
+		robot.turnMagnet(20, clockwise = True, R = r)
+		motores.stop()
+
 	
-	for i in range(4):
-		findLtrlBlock(True, state)
+	"""tpast = time() 
+	epsilon = 0.1
+	while True:
+			dt = time() - tpast 
+			if dt > epsilon:
+				alphar = arduino.getAll()[11]
+				print(alphar)
+				alphao = alphar
+				tpast = time() 
+				"""
+	# NO BORRAR NI COMENTAR
+	robot.stop()
+	##########
+	
+	
 
 

@@ -20,7 +20,7 @@ class Arduino(object):
 			result = result.replace('b', '')
 			result = result.replace("'", '')
 			s = result.split(' ')
-			if(len(s)!=13):
+			if(len(s)!=14):
 				return self.getAll()
 			for i in range(len(s)):
 				s[i]=float(s[i])
@@ -31,6 +31,7 @@ class Arduino(object):
 				pos += i*1000*s[i]
 			
 			s[8] = pos/suma
+			s[11] = 360 - s[11]
 		return s
 
 
@@ -43,7 +44,7 @@ class Arduino(object):
 			result = result.replace('b', '')
 			result = result.replace("'", '')
 			s = result.split(' ')
-			if(len(s)!=13):
+			if(len(s)!=14):
 				return self.getQTR()
 			for i in range(8):
 				s[i]=int(s[i])
@@ -58,7 +59,7 @@ class Arduino(object):
 			result = result.replace('b', '')
 			result = result.replace("'", '')
 			s = result.split(' ')
-			if(len(s)!=13):
+			if(len(s)!=14):
 				return self.getUltraL()
 			return float(s[9])
 		
@@ -71,7 +72,7 @@ class Arduino(object):
 			result = result.replace('b', '')
 			result = result.replace("'", '')
 			s = result.split(' ')
-			if(len(s)!=13):
+			if(len(s)!=14):
 				return self.getUltraR()
 			return float(s[11])
 	
@@ -85,7 +86,7 @@ class Arduino(object):
 			result = result.replace('b', '')
 			result = result.replace("'", '')
 			s = result.split(' ')
-			if(len(s)!=13):
+			if(len(s)!=14):
 				return self.getAverageQTR()
 			
 			pos = 0; suma = 0
@@ -105,7 +106,7 @@ class Arduino(object):
 			result = result.replace('b', '')
 			result = result.replace("'", '')
 			s = result.split(' ')
-			if(len(s)!=13):
+			if(len(s)!=14):
 				return self.getFullGyro()
 				
 			for i in range(12, 17):
@@ -121,12 +122,13 @@ class Arduino(object):
 			result = result.replace('b', '')
 			result = result.replace("'", '')
 			s = result.split(' ')
-			if(len(s)!=13):
+			if(len(s)!=14):
 				return self.gyro()
 			for i in range(len(s)):
 				s[i]=float(s[i])
 				
-			return float(s[12])
+			return float(s[len(s) - 1])
+	
 
 
 
@@ -134,5 +136,5 @@ if __name__ == "__main__":
 	arduino = Arduino()
 	ser.reset_input_buffer()
 	while True:
-		print(arduino.gyro())
+		print(arduino.getAll())
 

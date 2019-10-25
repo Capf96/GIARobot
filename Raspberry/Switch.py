@@ -24,13 +24,13 @@ class Switch(object) :
 			
 
 
-
 """
+
 suiche = Switch(9,10)	   
 while True:
 	print(suiche.pi.read(suiche.pinSB))		
+"""
 
-"""	
 		
 		
 	

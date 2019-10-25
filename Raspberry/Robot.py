@@ -11,18 +11,20 @@ from Switch import Switch
 from pdb import set_trace
 from time import sleep, time
 from multiprocessing import Process
+from math import pi
 
 import pigpio
 import serial
 
-
+# Componentes del Robot
 motores = Motors(26,20) # Pines GPIO17 y GPIO27
-arduino = Arduino()
-grua = Grua(19, 16, 6, 12)
-magnet = Magnet(23)
-ser = serial.Serial('/dev/ttyACM0', 57600)
+grua = Grua(19, 16, 18, 17)
+magnet = Magnet(23,22)
 suicheD = Switch(9,10) #Suiche izquierdo	
 suicheI = Switch(24,25)	#Suiche Derecho
+
+ser = serial.Serial('/dev/ttyACM0', 57600)
+arduino = Arduino()
 
 class Robot(object):
 	
@@ -42,7 +44,6 @@ class Robot(object):
 			sleep(0.05)
 	
 	
-	
 	def difAngle(self, ang1, ang2):				# CHECk
 		"""Obtiene la distancia entre dos angulos.
 		
@@ -60,7 +61,6 @@ class Robot(object):
 		else:
 			return min(abs(ang1) + abs(ang2), 360 - abs(ang1) - abs(ang2))
 	
-
 			
 	def moveStraight(self, pwm, dummy=0):  	
 		"""Hace que el robot se mueva hacia adelante en linea recta.
@@ -70,7 +70,7 @@ class Robot(object):
 		"""   
 	
 		# Parametros del PID
-		kp = 0.1		    # Constante Proporcional
+		kp = 0.4		    # Constante Proporcional
 		ki = 0	  	    # Constante Integral
 		kd = 0 #0.00375       # Constante Diferencial
 
@@ -88,6 +88,7 @@ class Robot(object):
 
 		# Radio de las ruedas del robot
 		r = 2.8 # cm
+		
 		
 		alpha_o = arduino.gyro()
 
@@ -109,7 +110,7 @@ class Robot(object):
 
 				# Aplicacion de la funcion de PID
 				delta = dif * kp + (dif - pdif / dt) * kd + ki * psum
-				
+
 				# Se modifica la salida de los motores				
 				motores.setMotorL(pwm + delta)  	
 				motores.setMotorR(pwm)
@@ -125,15 +126,13 @@ class Robot(object):
 		motores.stop()
 
 
-
 	def stop(self):								# CHECK
 		"""Detiene y apaga todos los componentes del robot."""
 		
 		magnet.off()
 		motores.stop()
 	
-			
-		
+				
 	def followLine(self, pwm, dummy=0):			# CHECK
 		"""Hace al robot seguir una linea negra.
 		
@@ -192,9 +191,8 @@ class Robot(object):
 				# El tiempo actual 'timepast' pasa a ser el tiempo previo 'timenow'
 				timepast = timenow
 
-			
-			
-	def detect(self, corner = False, blockL = False, blockR = False, blockC= False, dist = 0, line = False):	# CHECK
+					
+	def detect(self, corner = False, blockL = False, blockR = False, blockC= False, dist = 0, no = False, line = False):	# CHECK
 		"""Procedimiento que se mantiene activo mientras no se detecte el objeto indicado por argumento.
 
 		ARGUMENTOS:
@@ -203,6 +201,7 @@ class Robot(object):
 		blockR: True si se quiere detectar un bloque a la derecha, False en caso contrario (Valor predetermiando: False)
 		blockC: True si se quiere detectar un bloque central, False en caso contrario (Valor predetermiando: False)
 		dist: Distancia maxima a la que se considera que se detecto un bloque
+		no: Indica si se busca detectar un bloque, o dejar de detectar un bloque
 		line: True si se quiere detectar una linea, False en caso contrario (Valor predetermiando: False)
 		"""
 		
@@ -215,22 +214,31 @@ class Robot(object):
 			while sensors[0] < negro and sensors[7] < negro:
 				sensors = arduino.getQTR()
 
+
 		elif blockL:
 			block = arduino.getUltraL()
-
-			while block > dist:
+			
+			while block > dist and not no:
 				block = arduino.getUltraL()
+				
+			while block < dist and no:
+				block = arduino.getUltraL()
+
 
 		elif blockR:
 			block = arduino.getUltraR()
 
-			while block > dist:
+			while block > dist and not no:
+				block = arduino.getUltraR()
+			
+			while block < dist and no:
 				block = arduino.getUltraR()
 				
+				
 		elif blockC:
-
 			while (suicheD.getVal() == 0) and (suicheI.getVal() == 0):
 				pass	
+
 
 		elif line:
 			sensors = arduino.getQTR()
@@ -239,23 +247,17 @@ class Robot(object):
 			while all((sensor<negro) for sensor in sensors):
 				sensors = arduino.getQTR()
 
-	
 			
-	def turn(self, clockwise, angle):			# CHECK
+	def turn(self, clockwise, dummy=0):			# CHECK
 		"""Hace girar al robot.
 		
 		ARGUMENTOS:
 		clockwise: True indica sentido horario; False indica sentido anti-horario.
-		angle: Angulo aproximado que se desea girar.
 		"""
 
 		neg = ((-1) ** int(clockwise))
 		motores.setMotorL((-neg) * 30)  
 		motores.setMotorR(neg * 30)
-		t = self.angToTime(angle, clockwise)
-		sleep(t)
-		motores.stop()
-
 
 
 	def getPoles(self):							# CHECK    
@@ -389,15 +391,15 @@ class Robot(object):
 		return [norte, este, sur, oeste], [norte_m, este_m, sur_m, oeste_m ] 	
 
 
-
-	def adjtNearAngle(self, pwm, ang_ob):      
+	def adjtNearAngle(self, pwm, ang_ob, rec):      
 		"""Hace que el robot se ajuste a un angulo cercano dado.
 		
 		ARGUMENTOS
 		pwm: Potencia de los motores.
 		ang_obj: Es mi angulo objetivo.
 		"""
-		
+		recursion = rec + 1
+		PWM = pwm
 		print("Me estoy acercando...")	#BORRAR
 		
 		
@@ -424,7 +426,7 @@ class Robot(object):
 				if d > 0:
 					motores.setMotorL(+pwm )  	
 					motores.setMotorR(-pwm)
-					if t=="cklock":
+					if t=="cklock" and (pwm-n-1 > 20):
 						n = n+1
 						pwm = pwm-n
 					
@@ -433,7 +435,7 @@ class Robot(object):
 				else:
 					motores.setMotorL(-pwm )  	
 					motores.setMotorR(+pwm)
-					if t=="ccklock":
+					if t=="ccklock" and (pwm-n-1 > 20):
 						n = n+1
 						pwm = pwm-n
 					t =" cklock"
@@ -445,10 +447,9 @@ class Robot(object):
 		motores.stop()		
 		sleep(0.1)
 		alpha_o =  arduino.gyro()
-		if	not(alpha_o > ang_ob + 3 or alpha_o < ang_ob - 3 ):
-			self.adjtNearAngle(pwm, ang_ob)
+		if not(alpha_o > ang_ob + 3 or alpha_o < ang_ob - 3 ) and recursion < 15:
+			self.adjtNearAngle(PWM, ang_ob, recursion)
 		motores.stop()
-	
 	
 		
 	def adjtAngle(self, pwm, clockwise, state, magnet):      
@@ -525,7 +526,7 @@ class Robot(object):
 		dt = 0        	# Diferencial de tiempo. Es el tiempo que espera el sistema para aplicar				
 		epsilon  = 0.01   # 0.001 muy bajo buen valor 0.06
 		
-		while cond:
+		while cond and not magnet:
 			# Mide el tiempo actual
 			timenow  = time()	
 			# Calcula diferencia entre el tiempo actual y el pasado.
@@ -548,16 +549,41 @@ class Robot(object):
 				else:
 					cond = (pos > targetDir + 10) or (pos < targetDir - 10)
 					
-					
+		if not magnet:
+			# Despues de que nos acercamos lo suficiente a la posicion, usamos la funcion para acercarse a un angulo cercano.
+			self.adjtNearAngle(pwm, targetDir, 0)
+			
+		timepast = time()
+		dt = 0        	# Diferencial de tiempo. Es el tiempo que espera el sistema para aplicar				
+		epsilon  = 0.005   # 0.001 muy bajo buen valor 0.06
+		
+		
+		if magnet:
+			motores.setMotorL(neg*pwm )  	
+			motores.setMotorR(-neg*pwm)	
+			sleep(3)
+			motores.stop()
+			
+		while (pos > targetDir + 1) or (pos < targetDir - 1) and magnet:
+			# Mide el tiempo actual
+			timenow  = time()	
+			# Calcula diferencia entre el tiempo actual y el pasado.
+			dt = timenow - timepast
+			
+			if dt >= epsilon:
+				pos =  arduino.gyro()
 				
-		# Despues de que nos acercamos lo suficiente a la posicion, usamos la funcion para acercarse a un angulo cercano.
-		self.adjtNearAngle(pwm, targetDir)
+				motores.setMotorL(neg*pwm )  	
+				motores.setMotorR(-neg*pwm)				
+				
+				# El tiempo previo 'timepast' pasa a ser el tiempo actual 'timenow'.
+				timepast = timenow
 		
 		
 		print("LLEGUE!") #BORRAR	
 		
 		
-		
+	
 		
 	################################# FUNCIONES COMPUESTAS ###############################
 	def movStrUntTime(self, pwm, lapse):		# CHECK
@@ -568,7 +594,7 @@ class Robot(object):
 		lapse: Lapso de tiempo.
 		"""
 
-		p1 = Process(target = self.moveStraight, args = (pwm, 0) 
+		p1 = Process(target = self.moveStraight, args = (pwm, 0))
 		p1.start()
 		p2 = Process(target = self.timeLapse, args = (lapse, 0))
 		p2.start()
@@ -578,7 +604,6 @@ class Robot(object):
 	
 		p1.terminate()
 		motores.stop()
-
 
 
 	def moveStrUntLine(self, pwm):  				# CHECK   
@@ -649,8 +674,70 @@ class Robot(object):
 		motores.stop()
 
 
+	def movStrUntBlock(self, pwm):
+		
+		# Parametros del PID
+		kp = 0.1		    # Constante Proporcional
+		ki = 0	  	    # Constante Integral
+		kd = 0 #0.00375       # Constante Diferencial
 
-	def fllwLineUntObj(self, pwm, Corner = False, BlockL = False, BlockR = False, dist = 0, Bifur = False, Time = False, tm = 0):		# CHECK
+		
+		# Variables de tiempo
+		dt = 0        	# Diferencial de tiempo. Es el tiempo que espera el sistema para aplicar
+						
+		epsilon = 0.01  #0.001 muy bajo buen valor 0.06
+		timepast = time() #No se puede inicializar en 0 si no calcula mla la distncia 
+		
+		# Inizialicacion de las variables del PID
+		pdif = 0    # Diferencia/error previo
+		psum = 0    # Suma de las diferencias/errores previas
+	
+		
+		# Distancia recorrida
+		distance = 0
+
+		# Radio de las ruedas del robot
+		r = 2.8 # cm
+		
+		alpha_o = arduino.gyro()
+		
+		while (suicheD.getVal() == 0) and (suicheI.getVal() == 0):
+									
+			
+			# Mide el tiempo actual
+			timenow  = time()	
+			alpha_f = arduino.gyro()
+			# Calcula diferencia entre el tiempo actual y el pasado
+			dt = timenow - timepast
+			
+				
+			if dt >= epsilon:		
+
+				dif = alpha_f - alpha_o
+					
+				# Suma de los errores(dif) anteriores
+				psum = psum + dif
+
+				# Aplicacion de la funcion de PID
+				delta = dif * kp + (dif - pdif / dt) * kd + ki * psum
+				
+				# Se modifica la salida de los motores				
+				motores.setMotorL(pwm + delta)  	
+				motores.setMotorR(pwm)
+			
+				# La Diferencia Actual 'dif' pasa a ser la diferencia previa 'pdif' #
+				pdif = dif
+
+				# El tiempo previo 'timepast' pasa a ser el tiempo actual 'timenow'
+				timepast = time()
+
+				alpha_o  = alpha_f
+				
+				
+		motores.stop()
+
+
+	def fllwLineUntObj(self, pwm, Corner = False, BlockL = False, BlockR = False, dist = 0, No = False, Bifur = False, Time = False, tm = 0):		# CHECK
 		"""El robot sigue la linea negra hasta detectar el objeto indicado.
 
 		ARGUMENTOS:
@@ -659,8 +746,8 @@ class Robot(object):
 		BlockL: True si se quiere detectar un bloque a la izquierda, False en caso contrario (Valor predetermiando: False)
 		BlockR: True si se quiere detectar un bloque a la derecha, False en caso contrario (Valor predetermiando: False)
 		dist: Distancia maxima a la que se considera que se detecto un bloque
+		No: Indica si se busca detectar un bloque, o dejar de detectar un bloque
 		Bifur: True si se quiere detectar una bifurcacion (Valor predeterminado: False)
-		Line: True si se quiere detectar una linea, False en caso contrario (Valor predetermiando: False)
 		Time: True indica que se seguira la linea durante cierto tiempo (Valor predeterminado: False)
 		tm: Tiempo que se desea esperar mientras sigue la linea.
 		"""		
@@ -689,12 +776,14 @@ class Robot(object):
 		# Expresiones booleanas para el while
 		p = any(sensor > 1000 for sensor in sensors) and Corner
 		q = (sensors[0] < 1000 and sensors[7] < 1000) and Bifur
-		r = (dL > dist or dL == 0) and BlockL
-		s = (dR > dist or dR == 0) and BlockR
+		r = (dL > dist or dL == 0) and BlockL and not No
+		s = (dR > dist or dR == 0) and BlockR and not No
 		t = (lapse < tm) and Time
+		u = (dL < dist) and BlockL and No
+		v = (dR < dist) and BlockR and No
 		
 				
-		while p or q or r or s or t:
+		while p or q or r or s or t or u or v:
 			
 			# Mide el tiempo actual
 			timenow = time()	
@@ -736,15 +825,15 @@ class Robot(object):
 			if dt < 2:
 				lapse += dt
 						
-			# Expresiones booleanas para el while
 			p = any(sensor > 1000 for sensor in sensors) and Corner
 			q = (sensors[0] < 1000 and sensors[7] < 1000) and Bifur
-			r = (dL > dist or dL == 0) and BlockL
-			s = (dR > dist or dR == 0) and BlockR
+			r = (dL > dist or dL == 0) and BlockL and not No
+			s = (dR > dist or dR == 0) and BlockR and not No
 			t = (lapse < tm) and Time
+			u = (dL < dist) and BlockL and No
+			v = (dR < dist) and BlockR and No
 				
 		motores.stop()
-
 
 
 	def turnUntLine(self, clockwise):				# CHECK		
@@ -753,10 +842,10 @@ class Robot(object):
 		ARGUMENTOS:
 		Clockwise: True indica sentido horario; False indica sentido anti-horario.
 		"""
-		p2 = Process(target = self.detect, args = (False, False, False, False, 0, True))
+		p2 = Process(target = self.detect, args = (False, False, False, False, 0, False, True))
 		p2.start()
 		
-		p1 = Process(target = self.turn, args = (clockwise, 360)) 
+		p1 = Process(target = self.turn, args = (clockwise, 0)) 
 		p1.start()
 
 		while p2.is_alive():
@@ -766,24 +855,14 @@ class Robot(object):
 		motores.stop()
 
 
-
-	def align(self, pwm, foward):					# CHECK
-		"""El robot se mueve en lineaa recta y se alinea con una linea negra.
+	def align(self, pwm):					# CHECK
+		"""El robot se mueve en linea recta hacia adelante y se alinea con una linea negra.
 
 		ARGUMENTOS:
 		pwm: Velocidad del giro.
-		foward: Variable booleana que indica si va hacia adelante.
 		"""
-		p1 = Process(target = self.moveStraight, args = (foward, 0, True)) 
-		p1.start()
-		p2 = Process(target = self.detect, args = (False, False, False, False, 0, True))
-		p2.start()
-		
-		while p2.is_alive():
-			pass
 	
-		p1.terminate()
-		motores.stop()
+		self.moveStrUntLine(pwm)
 		
 		sensors = arduino.getQTR()
 		neg = -((-1)**int(foward))
@@ -817,7 +896,6 @@ class Robot(object):
 			self.align(pwm, True)
 				
 		motores.stop()
-
 
 
 
@@ -1084,7 +1162,56 @@ class Robot(object):
 		motores.stop()
 	
 	
+	def turnMagnet(self,pwm, ang = 90, clockwise = True, R = 16):
+		ser.reset_input_buffer()	
+		r = 2.8 
+		
+		
+		if clockwise == True:
+			nEc = 11 #Encoder Izquierdo
+			motores.setMotorL(pwm)
+		else:
+			nEc = 12  #Encoder Derecho
+			motores.setMotorR(pwm)
+		
+		print(arduino.getAll()[nEc])
+		
+		alphao = arduino.getAll()[nEc]
+		alpha = R/r * ang + alphao
 	
+		n = int(alpha/360)
+		alpha = alpha%360
+		
+		
+		print("Alpha: ", alpha)
+		
+		angR = 0;
+		epsilon = 0.1
+		tpast = time()
+		while n:
+			dt = time() - tpast 
+			if dt > epsilon:
+				ser.reset_input_buffer()
+				alphar = arduino.getAll()[nEc]
+				print("Dentro de n. AlphaR:  ", alphar, "Alpha0: ", alphao)
+				if alphar < alphao and abs(alphar - alphao) > 100:
+					n=n-1
+				alphao = alphar
+				tpast = time()  
+		
+		while (alphao < alpha):
+			dt = time() - tpast 
+			if dt > epsilon:
+				ser.reset_input_buffer()
+				alphar = arduino.getAll()[nEc]
+				print("Fuera de n. AlphaR:  ", alphar, "Alpha0: ", alphao)
+				if alphar < alphao and abs(alphar - alphao) > 100:
+					break
+				alphao = alphar
+				tpast = time() 
+				
+			
+			
 	
 	
 if __name__ == "__main__":
@@ -1092,20 +1219,14 @@ if __name__ == "__main__":
 	robot = Robot(); state = Estado()
 	##########
 	
-	state.direcs, state.direcsI = robot.getPoles()
-	
+	magnet.off()
 	while True:
-		
-		
-		clock = bool(int(input("Girara a la derecha? [1 | 0]: ")))
-		magnet = bool(int(input("Encendera el electroiman? [1 | 0]: ")))
-		
-		if magnet:
-			magnet.on()
-			
-		robot.adjtAngle(0, clock, state, magnet)
-		
-		magnet.off()
+		sleep(0.5)
+		ser.reset_input_buffer()
+		print("Encoder D: ", arduino.getAll()[12])
+	
+
+	
 	
 		
 	
