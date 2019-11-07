@@ -13,3 +13,4 @@ pwm = 15
 
 motores.stop()
 magnet.off()
+grua.setStep(0,0,0,0)

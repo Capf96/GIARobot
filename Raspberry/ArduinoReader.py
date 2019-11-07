@@ -14,6 +14,7 @@ class Arduino(object):
 			Los siguientes 3 representan el ultrasonido izquierdo, central y derecho respectivamente.
 			Los siguientes 6 son los valores del gyroscopio
 		"""
+		ser.reset_input_buffer()
 		data = list(ser.readline())
 		if data:
 			result = str(ser.readline().strip())
@@ -116,6 +117,7 @@ class Arduino(object):
 	
 	def gyro(self):
 		""" Obtenemos el valor del giroscopio """
+		ser.reset_input_buffer()
 		data = list(ser.readline())
 		if data:
 			result = str(ser.readline().strip())

@@ -87,5 +87,5 @@ class Grua(object):
 
 if __name__ == "__main__":			
 	grua = Grua(19, 16, 18, 17)
-	grua.stepper(-100, 0.002)
+	grua.stepper(-2000, 0.003)
 
