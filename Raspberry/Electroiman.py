@@ -5,20 +5,23 @@ import pigpio
   
 class Magnet(object):
 
-	def __init__(self, pin):
+	def __init__(self, pinA, pinB):
 		
-		self.pin = pin
-		
+		self.pinA = pinA
+		self.pinB = pinB
 		self.pi = pigpio.pi()
 	
-		self.pi.set_mode(self.pin, pigpio.OUTPUT)
+		self.pi.set_mode(self.pinA, pigpio.OUTPUT)
+		self.pi.set_mode(self.pinB, pigpio.OUTPUT)
 	
 
 	def on(self):
 		"""Prende el electroiman."""
-		self.pi.write(self.pin, 1)
+		self.pi.write(self.pinA, 1)
+		self.pi.write(self.pinB, 0)
 
 	
 	def off(self):
 		"""Apaga el electroiman."""
-		self.pi.write(self.pin, 0)
+		self.pi.write(self.pinA, 0)
+		self.pi.write(self.pinB, 0)

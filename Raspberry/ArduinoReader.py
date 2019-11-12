@@ -12,13 +12,17 @@ class Arduino(object):
 			Los primeros 8 valores representan el QTR.
 			El noveno es la posicion.
 			Los siguientes 3 representan el ultrasonido izquierdo, central y derecho respectivamente.
-			Los ultimos dos son izquierdo y derecho respectivamente.
+			Los siguientes 6 son los valores del gyroscopio
 		"""
-		data = ('').join(list(ser.readline()))
+		ser.reset_input_buffer()
+		data = list(ser.readline())
 		if data:
 			result = str(ser.readline().strip())
-			result = unicode(result, errors = 'replace' )
-			s = result.decode('utf-8').split(' ')
+			result = result.replace('b', '')
+			result = result.replace("'", '')
+			s = result.split(' ')
+			if(len(s)!=14):
+				return self.getAll()
 			for i in range(len(s)):
 				s[i]=float(s[i])
 				
@@ -28,17 +32,21 @@ class Arduino(object):
 				pos += i*1000*s[i]
 			
 			s[8] = pos/suma
+			s[11] = 360 - s[11]
 		return s
 
 
 	def getQTR(self):
 		"""Obtenemos un arreglo con los 8 valores del QTR."""
 		
-		data = ('').join(list(ser.readline()))
+		data = list(ser.readline())
 		if data:
 			result = str(ser.readline().strip())
-			result = unicode(result, errors = 'replace' )
-			s = result.decode('utf-8').split(' ')
+			result = result.replace('b', '')
+			result = result.replace("'", '')
+			s = result.split(' ')
+			if(len(s)!=14):
+				return self.getQTR()
 			for i in range(8):
 				s[i]=int(s[i])
 		return s[0:8]
@@ -46,61 +54,41 @@ class Arduino(object):
 		
 	def getUltraL(self):
 		"""Obtenemos el valor del ultrasonido izquierde."""
-		data = ('').join(list(ser.readline()))
+		data = list(ser.readline())
 		if data:
 			result = str(ser.readline().strip())
-			result = unicode(result, errors = 'replace' )
-			s = result.decode('utf-8').split(' ')
+			result = result.replace('b', '')
+			result = result.replace("'", '')
+			s = result.split(' ')
+			if(len(s)!=14):
+				return self.getUltraL()
 			return float(s[9])
 		
 		
 	def getUltraR(self):
 		"""Obtenemos el valor del ultrasonido derecho."""
-		data = ('').join(list(ser.readline()))
+		data = list(ser.readline())
 		if data:
 			result = str(ser.readline().strip())
-			result = unicode(result, errors = 'replace' )
-			s = result.decode('utf-8').split(' ')
+			result = result.replace('b', '')
+			result = result.replace("'", '')
+			s = result.split(' ')
+			if(len(s)!=14):
+				return self.getUltraR()
 			return float(s[11])
 	
-	
-	def getUltraC(self):
-		"""Obtenemos el valor del ultrasonido central."""
-		data = ('').join(list(ser.readline()))
-		if data:
-			result = str(ser.readline().strip())
-			result = unicode(result, errors = 'replace' )
-			s = result.decode('utf-8').split(' ')
-			return float(s[10])
-		
-		
-	def getEncoderL(self):
-		"""Obtenemos el valor del encoder izquierdo."""
-		data = ('').join(list(ser.readline()))
-		if data:
-			result = str(ser.readline().strip())
-			result = unicode(result, errors = 'replace' )
-			s = result.decode('utf-8').split(' ')
-			return 360 - float(s[12])
-		
-		
-	def getEncoderR(self):
-		"""Obtenemos el valor del encoder derecho."""
-		data = ('').join(list(ser.readline()))
-		if data:
-			result = str(ser.readline().strip())
-			result = unicode(result, errors = 'replace' )
-			s = result.decode('utf-8').split(' ')
-			return float(s[13])
-		
 		
 	def getAverageQTR(self):
+		
 		"""Obtenemos la posicion (promedio) entre los 8 sensores QTR."""
-		data = ('').join(list(ser.readline()))
+		data = list(ser.readline())
 		if data:
 			result = str(ser.readline().strip())
-			result = unicode(result, errors = 'replace' )
-			s = result.decode('utf-8').split(' ')
+			result = result.replace('b', '')
+			result = result.replace("'", '')
+			s = result.split(' ')
+			if(len(s)!=14):
+				return self.getAverageQTR()
 			
 			pos = 0; suma = 0
 			for i in range(8):
@@ -109,11 +97,46 @@ class Arduino(object):
 			
 			return pos/suma
 
+		
+	def getFullGyro(self):
+		"""Obtenemos un arreglo con los 5 valores del giroscopio."""
+		
+		data = list(ser.readline())
+		if data:
+			result = str(ser.readline().strip())
+			result = result.replace('b', '')
+			result = result.replace("'", '')
+			s = result.split(' ')
+			if(len(s)!=14):
+				return self.getFullGyro()
+				
+			for i in range(12, 17):
+				s[i]=float(s[i])
+		return s[12:17]
+	
+	
+	def gyro(self):
+		""" Obtenemos el valor del giroscopio """
+		ser.reset_input_buffer()
+		data = list(ser.readline())
+		if data:
+			result = str(ser.readline().strip())
+			result = result.replace('b', '')
+			result = result.replace("'", '')
+			s = result.split(' ')
+			if(len(s)!=14):
+				return self.gyro()
+			for i in range(len(s)):
+				s[i]=float(s[i])
+				
+			return float(s[len(s) - 1])
+	
+
 
 
 if __name__ == "__main__":
 	arduino = Arduino()
 	ser.reset_input_buffer()
 	while True:
-		print(arduino.getAverageQTR())
+		print(arduino.getAll())
 

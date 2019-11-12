@@ -1,7 +1,8 @@
 from Encoder import Encoder
 
 
-encoderk = Encoder(24)
+encoderR = Encoder(21)
+encoderL = Encoder(5)
 while True:
-	print(encoderk.getPos())
-	
+	print(str(encoderL.getPos()))
+

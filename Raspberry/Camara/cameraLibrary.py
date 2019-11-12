@@ -108,5 +108,5 @@ def detect_color() :
     return 'f'
 
 
-# boat_center("g")
+boat_center("g")
 # detect_color()

@@ -11,11 +11,15 @@ class Encoder(object):
 		self.pin = pin #Numero del pin gpio al que esta conectado el encoder
 		self.pi = pigpio.pi()
 		self.pi.set_mode(self.pin, pigpio.INPUT)
+		self.posPass = 0
 	
 	def getPos(self):
 		#Obtinene la posicion del encoder en cierto momento
-		DutyCycleMax= 0.917
+		DutyCycleMax= 0.971
 		DutyCycleMin = 0.029
+	
+		x = 0.2
+		
 		while True:
 			to = time() #Tomamos un tiempo to
 			#Medimos el tiempo en el que el la senal del encoder es high(1)
@@ -29,11 +33,13 @@ class Encoder(object):
 			
 			#Aplicamos la formula que proporciona el datasheet
 			DutyCycle =(tHigh / tCycle)
-			out = (DutyCycle-DutyCycleMin)*360#/(DutyCycleMax-DutyCycleMin+1) Se supone que deberia llevar esto pero meh
-			
+			#out = (DutyCycle-DutyCycleMin)*360/(DutyCycleMax-DutyCycleMin+1) 
+			out = abs((DutyCycle * 360 - 30 )*360/300)
 			#Se envia la senal si solo si el tiempo del cyclo completo esta en el el rango apropiado, si no se desecha y se hace otra lectura
+			 
 			if tCycle > 0.001 and tCycle < 0.0012:
-				return out
+				self.posPass = out * x + (1-x)* self.posPass
+				return self.posPass
 			else: 
 				pass
 
@@ -42,7 +48,7 @@ class Encoder(object):
 
 		prev = self.getPos()
 		now  = self.getPos()	
-	
+		
 		#El analisis de casos se realiza para saber si ocurrio un giro del 4to al 1er cuadrante o viceversa y se hacen los calculos necesarios paraajustar la diferencia
 		if now > 270 and prev < 90:
 			dif = now - (prev + 360)
@@ -55,8 +61,9 @@ class Encoder(object):
 
 	def getPosPlus(self):
 		#Obtinene la posicion del encoder en cierto momento y el tiempo que tardo en hacer la lectura
-		DutyCycleMax= 0.917
-		DutyCycleMin = 0.029
+		DutyCycleMax= 97.1
+		DutyCycleMin = 2.9
+		x = 0.9
 		while True:
 			to = time() #Tomamos un tiempo to
 			#Medimos el tiempo en el que el la senal del encoder es high(1)
@@ -69,12 +76,13 @@ class Encoder(object):
 			tCycle = time()-to
 			
 			#Aplicamos la formula que proporciona el datasheet
-			DutyCycle =(tHigh / tCycle)
-			out = (DutyCycle-DutyCycleMin)*360#/(DutyCycleMax-DutyCycleMin+1) Se supone que deberia llevar esto pero meh
+			DutyCycle =100*(tHigh / tCycle)
+			out = (DutyCycle-DutyCycleMin)*360/(DutyCycleMax-DutyCycleMin+1) #Se supone que deberia llevar esto pero meh
 			
 			#Se envia la senal si solo si el tiempo del cyclo completo esta en el el rango apropiado, si no se desecha y se hace otra lectura
 			if tCycle > 0.001 and tCycle < 0.0012:
-				return [out, tCycle]
+				self.posPass = out * x + (1-x)* self.posPass
+				return [self.posPass, tCycle]
 			else: 
 				pass
 

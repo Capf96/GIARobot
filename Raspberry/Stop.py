@@ -7,11 +7,10 @@ from StepperMotor import Grua
 robot = Robot()
 motores = Motors(20,26) # Pines GPIO27 y GPIO18
 arduino = Arduino()
-magnet = Magnet(23)
-grua = Grua(19, 16, 06, 12)
+magnet = Magnet(23,22)
+grua = Grua(19, 16, 6, 12)
 pwm = 15
+
 motores.stop()
-
 magnet.off()
-
-grua.stepper(0, 0.001)
+grua.setStep(0,0,0,0)
