@@ -6,14 +6,19 @@ import argparse
 import imutils
 import numpy as np
 
+# Parse arguments 
 ap = argparse.ArgumentParser()
 ap.add_argument("-i", "--image", help = "path to the image")
 ap.add_argument("-c", "--color", help = "color that needs detection")
 args = vars(ap.parse_args())
 
+# Process arguments
 color = args["color"]
-
-image = cv2.imread(args["image"])
+#image = cv2.imread(args["image"])
+cap = cv2.VideoCapture(0)
+ret, frame = cap.read()
+image = frame.copy()
+# Prepare image
 image = cv2.resize(image, (600,600))
 hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
@@ -50,22 +55,20 @@ thresh = cv2.threshold(blurred, 100, 255, cv2.THRESH_BINARY)[1]
 # find contours in the thresholded image
 cnts = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 cnts = imutils.grab_contours(cnts)
+# If cnts is not empty then there is a contour
 c = max(cnts, key=len, default=[[]])
-
-# compute the center of the contourcX = int(M["m10"] / M["m00"])
-M = cv2.moments(c)
-cX = int(M["m10"] / M["m00"])
-'''
-cY = int(M["m01"] / M["m00"])
 
 # draw the contour and center of the shape on the image
 cv2.drawContours(image, [c], -1, (0, 255, 0), 2)
-cv2.circle(image, (cX, cY), 7, (255, 255, 255), -1)
-'''
+# compute the center of the contour cX = int(M["m10"] / M["m00"])
+M = cv2.moments(c)
+cX = int(M["m10"] / M["m00"])
+
 if(250<=cX<=350) : 
     print(True)
 else :
     print(False)
+
 # show the image
 cv2.imshow("Image", image)
 cv2.waitKey(0)
